@@ -1,0 +1,227 @@
+/* Global Styles */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  margin: 0;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  overflow-x: hidden;
+}
+
+/* Header Styles */
+.header {
+  background-color: #1d2635;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding: 0 2rem;
+  height: 70px;
+  transition: box-shadow 0.3s ease;
+}
+
+/* Logo Section */
+.logo {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start; /* Ensures the logo stays left */
+}
+
+.logoLink {
+  color: #ffffff;
+  font-size: 1.75rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.logoText {
+  background: linear-gradient(to right, #3b82f6, #8b5cf6);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  transition: background 0.3s ease;
+}
+
+
+
+/* Nav Links and Profile Icon Section */
+
+.profile {
+  display: flex;
+  align-items: center;
+}
+
+
+
+.navProfileWrapper {
+  display: flex;
+  justify-content: flex-end; /* Aligns the links and profile icon to the right */
+  gap: 2rem;
+  align-items: center;
+  width: auto; /* Ensure this container grows only when needed */
+}
+
+.navLinks {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  list-style: none;
+  align-items: center;
+  gap: 2rem;
+  margin: 0;
+  padding: 0;
+}
+
+
+.navLink {
+  color: #e2e8f0;
+  text-decoration: none;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  font-size: 1rem;
+  position: relative;
+  transition: color 0.3s ease, transform 0.3s ease;
+}
+
+.navLink:hover {
+  color: #ffffff;
+  transform: translateY(-2px);
+}
+
+.navLink::before {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background-color: #3b82f6;
+  transform: scaleX(0);
+  transition: transform 0.3s ease;
+}
+
+.navLink:hover::before {
+  transform: scaleX(1);
+}
+
+.navIcon {
+  font-size: 1.1rem;
+  vertical-align: middle;
+}
+
+
+/* Profile Icon */
+.profileLink {
+  color: #ffffff;
+  font-size: 1.5rem;
+  text-decoration: none;
+}
+
+.profileIcon {
+  font-size: 2rem;
+  color: #3b82f6;
+  cursor: pointer;
+}
+
+/* Hamburger Menu */
+.hamburgerMenu {
+  display: none;
+}
+
+.hamburgerCheckbox:checked + label + .mobileNavLinks {
+  display: block;
+}
+
+.hamburgerIcon {
+  display: block;
+  font-size: 2rem;
+  color: white;
+  cursor: pointer;
+  padding: 10px;
+}
+
+.mobileNavLinks {
+  display: none;
+  position: absolute;
+  top: 70px;
+  right: 0;
+  background-color: #1d2635;
+  padding: 1rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  list-style: none;
+  width: 100%;
+}
+
+.mobileNavLinks li {
+  margin: 1rem 0;
+}
+
+.mobileNavLinks .navLink {
+  padding: 1rem;
+  text-align: center;
+  font-size: 1.2rem;
+}
+
+/* Main nav layout */
+.nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 70px;
+  padding: 0 2rem;
+  background-color: #1d2635;
+}
+
+/* Right side of nav (links + profile) */
+.navRight {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 2rem;
+}
+
+
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .header {
+    padding: 0.5rem 1rem;
+    flex-direction: column;
+  }
+
+.navProfileWrapper {
+  display: flex;
+  justify-content: space-between;  /* spread out links and icon */
+  align-items: center;
+  flex: 1;
+  margin-left: auto; /* pushes wrapper to the right */
+  gap: 2rem;
+}
+
+
+.navLinks {
+  display: flex;
+  list-style: none;
+  align-items: center;
+  gap: 2rem;
+  margin: 0;
+  padding: 0;
+}
+
+
+  /* Show hamburger on small screens */
+  .hamburgerMenu {
+    display: block;
+  }
+}

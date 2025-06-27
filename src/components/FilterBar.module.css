@@ -1,0 +1,38 @@
+.filterBar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: #f3f4f6;
+    padding: 1rem;
+    border-radius: 0.5rem;
+    box-shadow: 0 1px 5px rgba(0, 0, 0, 0.05);
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+  
+  .sort {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  
+  .sort select {
+    padding: 0.4rem;
+    border-radius: 0.375rem;
+    border: 1px solid #d1d5db;
+  }
+  
+  .toggles {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+  
+  .toggles label {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.95rem;
+  }
+  

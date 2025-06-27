@@ -1,0 +1,335 @@
+/* --- Main container --- */
+.gridWrapper {
+  display: flex;
+  align-items: flex-start;
+  width: 100%;
+  min-height: 80vh;
+  gap: 2rem;
+  box-sizing: border-box;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* --- Sidebar (Filters) --- */
+.filtersColumn {
+  flex: 0 0 240px;
+  max-width: 340px;
+  min-width: 260px;
+  background: #fafbfc;
+  border-radius: 16px;
+  box-shadow: 0 2px 12px rgba(80,110,160,0.07);
+  padding: 0 0 0 0; /* Let FiltersSection control its internal padding */
+  align-self: flex-start;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  /* Ensures full width usage for its children */
+}
+
+.filtersColumn > * {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* --- Main Table Section --- */
+.mainContent {
+  flex: 1 1 0%;
+  min-width: 0;
+  background: #fff;
+  border-radius: 16px;
+  padding: 2rem 1.2rem 2.5rem 1.2rem;
+  box-sizing: border-box;
+  box-shadow: 0 2px 12px rgba(80,110,160,0.05);
+  overflow-x: auto;
+}
+
+/* --- Header and Search --- */
+.headerRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 2.5rem;
+  margin-bottom: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.pageTitle {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #2563eb;
+  margin: 0;
+  flex: 1 0 200px;
+}
+
+.filterBar {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  min-width: 250px;
+}
+
+.searchInput {
+  border: 1px solid #d1d8e0;
+  border-radius: 1em;
+  padding: 0.6em 1.1em;
+  font-size: 1.05em;
+  width: 180px;
+}
+
+.sortSelect {
+  border-radius: 0.6em;
+  border: 1px solid #d1d8e0;
+  background: #f2f6fd;
+  padding: 0.6em 1.2em;
+  font-size: 1.04em;
+  color: #1d3557;
+}
+/* Table adjustments for compactness */
+.componentsTable {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 1.2rem;
+  table-layout: fixed; /* Makes columns equally spaced */
+  font-size: 0.92em;   /* Smaller font for more info per row */
+}
+
+/* Tighter cells */
+.componentsTable th,
+.componentsTable td {
+  padding: 0.38rem 0.19rem;    /* Tighter padding */
+  border-bottom: 1px solid #e5e9f2;
+  text-align: left;
+  font-size: 0.91em;
+  word-break: break-all;       /* Forces long text to wrap */
+  overflow: hidden;
+  text-overflow: ellipsis;     /* Shows ... if too long */
+  white-space: nowrap;
+  max-width: 110px;            /* Shrink cell width */
+}
+
+/* Slightly smaller header for compactness */
+.componentsTable th {
+  background: #f3f6fa;
+  font-weight: 600;
+  color: #333;
+  letter-spacing: 0.01em;
+  font-size: 0.97em;
+}
+
+@media (max-width: 900px) {
+  .componentsTable th,
+  .componentsTable td {
+    font-size: 0.82em;
+    max-width: 70px;
+    padding: 0.23rem 0.1rem;
+  }
+}
+
+
+.addButton {
+  background: #3b82f6;
+  color: white;
+  border: none;
+  padding: 0.45rem 0.9rem;
+  border-radius: 0.27rem;
+  cursor: pointer;
+  transition: background 0.25s;
+  font-size: 1em;
+  padding: 0.28rem 0.7rem;
+  font-size: 0.93em;
+}
+
+.addButton:hover {
+  background: #2563eb;
+}
+
+.notFoundCell {
+  text-align: center;
+  color: #d9534f;
+  font-weight: 600;
+  padding: 2rem 0;
+  font-size: 1.13em;
+}
+
+/* --- Pagination Bar --- */
+.paginationBar {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 1.4rem;
+  margin-top: 2rem;
+}
+
+.paginationBtn {
+  background: #3b82f6;
+  color: #fff;
+  padding: 0.47em 1.3em;
+  border: none;
+  border-radius: 1.1em;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 1.03em;
+  transition: background 0.2s;
+}
+.paginationBtn:disabled {
+  background: #b5b5b5;
+  cursor: not-allowed;
+}
+
+@media (max-width: 1200px) {
+  .gridWrapper {
+    max-width: 100vw;
+    gap: 1rem;
+    padding: 0 1vw;
+  }
+  .mainContent {
+    padding: 1.2rem 0.7rem 1.5rem 0.7rem;
+  }
+}
+
+@media (max-width: 900px) {
+  .gridWrapper {
+    flex-direction: column;
+    gap: 2rem;
+  }
+  .filtersColumn {
+    max-width: 100vw;
+    border-radius: 14px;
+    min-width: 0;
+    margin-bottom: 1.2rem;
+  }
+  .mainContent {
+    border-radius: 12px;
+  }
+}
+
+@media (max-width: 650px) {
+  .headerRow {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+  }
+  .pageTitle {
+    font-size: 1.3rem;
+  }
+  .mainContent {
+    padding: 0.7rem 0.1rem 1rem 0.1rem;
+  }
+  .filtersColumn {
+    padding: 0 !important;
+  }
+}
+/* Make the Name column bold and wider */
+.nameCol, .nameCell {
+  font-weight: 600;
+  font-size: 1.09em;
+  max-width: 200px;
+  min-width: 120px;
+  white-space: normal;
+  color: #203360;
+  letter-spacing: 0.4px;
+}
+
+.cpuName {
+  font-family: 'Segoe UI', 'Arial', sans-serif;
+}
+
+.componentsTable th, .componentsTable td {
+  padding: 0.35rem 0.75rem;
+  font-size: 0.46em;
+  word-break: break-word;
+  text-align: left;
+}
+
+/* Cores & Threads: fit just the number */
+.coresCol, .threadsCol {
+  /* max-width: 24px;
+  min-width: 12px; */
+  width:30px;
+  text-align: center;
+  font-size: 0.98em;
+  padding-left: 0.2em;
+  padding-right: 0.2em;
+}
+.threadsCol {
+  width:40px;
+}
+/* Base Clock, L3 Cache, TDP: number only, narrow */
+.baseClockCol, .l3Col, .tdpCol {
+  max-width: 68px;
+  min-width: 44px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.97em;
+  padding-left: 0.3em;
+  padding-right: 0.3em;
+}
+.baseClockCol{
+  width:50px;
+}
+
+/* For very tight columns (if still too wide) */
+.componentsTable th,
+.componentsTable td {
+  /* Already compact, but you can tighten further: */
+  padding: 0.28rem 0.36rem;
+}
+
+/* Table headers: allow wrapping and fit tight columns */
+.componentsTable th {
+  white-space: normal !important; /* allow wrapping */
+  word-break: break-word;
+  text-align: center;
+  padding: 0.18rem 0.29rem;
+  font-size: 0.96em;
+  line-height: 1.12;
+}
+
+/* Numeric columns tighter */
+.coresCol, .threadsCol, .baseClockCol, .boostClockCol, .l3Col, .tdpCol {
+  width: 35px;
+  min-width: 28px;
+  max-width: 42px;
+  text-align: center;
+  font-size: 0.93em;
+  padding-left: 0.09em;
+  padding-right: 0.09em;
+}
+
+.boostClockCol, .baseClockCol {
+  width: 55px;
+  min-width: 44px;
+  max-width: 62px;
+}
+
+.nameCol, .nameCell {
+  font-weight: 600;
+  font-size: 1.06em;
+  max-width: 200px;
+  min-width: 110px;
+  color: #203360;
+  letter-spacing: 0.4px;
+  word-break: break-word;
+}
+
+@media (max-width: 900px) {
+  .componentsTable th,
+  .componentsTable td {
+    font-size: 0.78em;
+    max-width: 60px;
+    padding: 0.13rem 0.09rem;
+  }
+}
+
+.componentsTable td {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0.22rem 0.29rem;
+}
+
+.componentsTable th, .componentsTable td {
+  vertical-align: middle;
+}

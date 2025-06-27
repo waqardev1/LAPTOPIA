@@ -1,0 +1,183 @@
+/* src/components/Auth/CreateAccount.module.css */
+.createAccountContainer {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f5f6fa;
+  }
+  
+  .createAccountForm {
+    background: #fff;
+    padding: 2.2rem 2rem 2.2rem 2rem;
+    border-radius: 18px;
+    box-shadow: 0 8px 36px 0 rgba(60,70,110,0.15);
+    width: 100%;
+    max-width: 370px;
+    display: flex;
+    flex-direction: column;
+    gap: 1.1rem;
+  }
+  
+  .logoRow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin-bottom: 8px;
+  }
+  .logoImg {
+    width: 38px;
+    height: 38px;
+    border-radius: 8px;
+    background: #fafbff;
+  }
+  .brandTitle {
+    font-size: 1.3rem;
+    letter-spacing: 2px;
+    font-weight: 600;
+    color: #204280;
+    margin: 0;
+  }
+  
+  .createTitle {
+    margin-bottom: 2px;
+    font-size: 1.45rem;
+    font-weight: 600;
+    color: #23355b;
+    text-align: center;
+  }
+  
+  .formGroup {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-bottom: 0;
+  }
+  
+  .formGroup label {
+    font-weight: 500;
+    color: #3e4b6d;
+    margin-bottom: 3px;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  
+  .inputIcon {
+    color: #3653a2;
+    font-size: 1rem;
+  }
+  
+  input[type="text"],
+  input[type="email"],
+  input[type="password"] {
+    padding: 0.65rem 0.85rem;
+    border-radius: 7px;
+    border: 1.5px solid #cfd6e5;
+    font-size: 1rem;
+    transition: border 0.16s;
+    outline: none;
+    background: #fafdff;
+    color: #263053;
+  }
+  
+  input:focus {
+    border-color: #6a90f9;
+    background: #f2f8ff;
+  }
+  
+  input[aria-invalid="true"] {
+    border-color: #e0503e;
+    background: #fff4f4;
+  }
+  
+  .passwordInput {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+  
+  .togglePassword {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    border: none;
+    background: none;
+    color: #8391a7;
+    font-size: 1.14rem;
+    cursor: pointer;
+    outline: none;
+    padding: 0 6px;
+    z-index: 2;
+  }
+  
+  .togglePassword:active {
+    color: #3551b5;
+  }
+  
+  .createButton {
+    margin-top: 10px;
+    padding: 0.72rem 0;
+    font-size: 1.07rem;
+    font-weight: 600;
+    background: linear-gradient(90deg, #385fe7 50%, #36b0e7 100%);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    box-shadow: 0 2px 18px 0 rgba(40,98,255,0.08);
+    transition: background 0.18s, opacity 0.18s;
+  }
+  .createButton[disabled],
+  .createButton[aria-disabled="true"] {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+  
+  .error {
+    color: #e05d4a;
+    font-size: 0.99rem;
+    margin-top: 4px;
+    margin-bottom: 3px;
+    background: #fff1f1;
+    padding: 3px 7px;
+    border-radius: 5px;
+    border: 1px solid #ffe3e3;
+    font-weight: 500;
+  }
+  
+  .success {
+    color: #188348;
+    background: #eaffee;
+    font-size: 1rem;
+    margin: 8px 0 3px 0;
+    padding: 4px 7px;
+    border-radius: 5px;
+    border: 1px solid #b0eed2;
+    font-weight: 500;
+    text-align: center;
+  }
+  
+  .spinner {
+    animation: spin 1s linear infinite;
+    font-size: 1.15rem;
+    vertical-align: middle;
+  }
+  @keyframes spin {
+    100% { transform: rotate(360deg); }
+  }
+  
+  /* Responsive */
+  @media (max-width: 550px) {
+    .createAccountForm {
+      padding: 1.2rem 0.4rem 1.5rem 0.4rem;
+      max-width: 98vw;
+      border-radius: 8px;
+    }
+    .logoImg { width: 31px; height: 31px; }
+    .brandTitle { font-size: 1.05rem; }
+  }
+  

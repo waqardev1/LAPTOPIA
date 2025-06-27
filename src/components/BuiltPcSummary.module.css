@@ -1,0 +1,125 @@
+.builtPcSummaryContainer {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+    text-align: center;
+    background: #f8fafc;
+    border-radius: 1rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  }
+  
+  .pageTitle {
+    font-size: 2rem;
+    margin-bottom: 1rem;
+    color: #1e3a8a;
+  }
+  
+  .summaryDetails {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .sectionTitle {
+    font-size: 1.5rem;
+    margin-bottom: 1rem;
+    color: #3b82f6;
+  }
+  
+  .componentsTable {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1rem;
+  }
+  
+  .componentsTable th,
+  .componentsTable td {
+    padding: 0.5rem;
+    border: 1px solid #ddd;
+  }
+  
+  .summaryInfo {
+    margin-top: 2rem;
+    font-size: 1.25rem;
+  }
+  
+  @media (max-width: 768px) {
+    .builtPcSummaryContainer {
+      padding: 1rem;
+    }
+  
+    .componentsTable {
+      font-size: 0.9rem;
+    }
+  }
+
+  .builtPcSummaryContainer {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+    text-align: center;
+    background: #f8fafc;
+    border-radius: 1rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  }
+  
+  .pageTitle {
+    font-size: 2rem;
+    margin-bottom: 1rem;
+    color: #1e3a8a;
+  }
+  
+  .summaryDetails {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .sectionTitle {
+    font-size: 1.5rem;
+    margin-bottom: 1rem;
+    color: #3b82f6;
+  }
+  
+  .componentsTable {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1rem;
+  }
+  
+  .componentsTable th,
+  .componentsTable td {
+    padding: 0.5rem;
+    border: 1px solid #ddd;
+  }
+  
+  .summaryInfo {
+    margin-top: 2rem;
+    font-size: 1.25rem;
+  }
+  
+  .loginButton {
+    padding: 0.75rem 1.5rem;
+    background-color: #3b82f6;
+    color: white;
+    border: none;
+    border-radius: 0.375rem;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    margin-top: 1rem;
+  }
+  
+  .loginButton:hover {
+    background-color: #2563eb;
+  }
+  
+  @media (max-width: 768px) {
+    .builtPcSummaryContainer {
+      padding: 1rem;
+    }
+  
+    .componentsTable {
+      font-size: 0.9rem;
+    }
+  }

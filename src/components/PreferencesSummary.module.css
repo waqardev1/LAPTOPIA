@@ -1,0 +1,25 @@
+.summaryBox {
+    background-color: #f9fafb;
+    padding: 1.5rem;
+    border-radius: 0.5rem;
+    box-shadow: 0 1px 5px rgba(0, 0, 0, 0.05);
+    margin: 1.5rem 0;
+  }
+  
+  .summaryBox h2 {
+    font-size: 1.5rem;
+    color: #2563eb;
+    margin-bottom: 1rem;
+  }
+  
+  .summaryBox ul {
+    list-style: none;
+    padding: 0;
+  }
+  
+  .summaryBox li {
+    font-size: 1rem;
+    margin-bottom: 0.5rem;
+    color: #374151;
+  }
+  

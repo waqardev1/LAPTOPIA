@@ -1,0 +1,164 @@
+.pageContainer {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.pageContainer h1 {
+  font-size: 2rem;
+  margin-bottom: 1rem;
+  color: #1e3a8a;
+}
+
+.pageContainer p {
+  color: #4b5563;
+  font-size: 1.1rem;
+}
+
+.recommendationForm {
+  margin-bottom: 2rem;
+}
+
+.formGroup {
+  margin-bottom: 1rem;
+}
+
+.formGroup label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: #1e3a8a;
+}
+
+.formGroup input {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #3b82f6;
+  border-radius: 0.375rem;
+  font-size: 1rem;
+}
+
+.ctaButton {
+  display: inline-block;
+  padding: 0.75rem 1.5rem;
+  background: #3b82f6;
+  color: white;
+  text-decoration: none;
+  border-radius: 0.375rem;
+  font-weight: 500;
+  transition: background 0.3s ease;
+}
+
+.ctaButton:hover {
+  background: #2563eb;
+}
+
+.recommendationResults {
+  background: #f8fafc;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+@media (max-width: 768px) {
+  .pageContainer {
+    max-width: 100%;
+    padding: 1rem;
+  }
+}
+
+/* ... (previous styles) ... */
+
+.inputField {
+  width: 100%;
+  padding: 1rem;
+  margin-bottom: 2rem;
+  border: 1px solid #3b82f6;
+  border-radius: 0.5rem;
+  font-size: 1rem;
+  resize: vertical; /* Allow vertical resizing */
+  min-height: 100px; /* Minimum height for the textarea */
+}
+
+/* ... (previous styles) ... */
+
+/* Recommendation Section Styles */
+.recommendationSection {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  margin-bottom: 3rem;
+  padding: 2rem;
+  background: #f8fafc;
+  border-radius: 1rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.recommendationInput {
+  flex: 1;
+  margin-right: 2rem;
+}
+
+.recommendationInput h2 {
+  font-size: 2rem;
+  margin-bottom: 1rem;
+  color: #1e3a8a;
+}
+
+.recommendationInput p {
+  font-size: 1.1rem;
+  margin-bottom: 2rem;
+  color: #4b5563;
+}
+
+.inputField {
+  width: 100%;
+  padding: 1rem;
+  margin-bottom: 2rem;
+  border: 1px solid #3b82f6;
+  border-radius: 0.5rem;
+  font-size: 1rem;
+  resize: vertical; /* Allow vertical resizing */
+  min-height: 100px; /* Minimum height for the textarea */
+}
+
+.ctaButton {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.75rem 2rem;
+  background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+  color: white;
+  text-decoration: none;
+  border-radius: 9999px;
+  font-weight: 600;
+  font-size: 1rem;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+  z-index: 1;
+}
+
+.ctaButton::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, #2563eb, #7c3aed);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  z-index: -1;
+}
+
+.ctaButton:hover::before {
+  opacity: 1;
+}
+
+.ctaButton span {
+  position: relative;
+  z-index: 2;
+}
+
+/* ... (previous styles) ... */

@@ -1,0 +1,7277 @@
+
+================================================================================
+// File: C:\Users\Administrator\Desktop\laptopia\eslint.config.js
+================================================================================
+import js from '@eslint/js'
+import globals from 'globals'
+import reactHooks from 'eslint-plugin-react-hooks'
+import reactRefresh from 'eslint-plugin-react-refresh'
+
+export default [
+  { ignores: ['dist'] },
+  {
+    files: ['**/*.{js,jsx}'],
+    languageOptions: {
+      ecmaVersion: 2020,
+      globals: globals.browser,
+      parserOptions: {
+        ecmaVersion: 'latest',
+        ecmaFeatures: { jsx: true },
+        sourceType: 'module',
+      },
+    },
+    plugins: {
+      'react-hooks': reactHooks,
+      'react-refresh': reactRefresh,
+    },
+    rules: {
+      ...js.configs.recommended.rules,
+      ...reactHooks.configs.recommended.rules,
+      'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
+      'react-refresh/only-export-components': [
+        'warn',
+        { allowConstantExport: true },
+      ],
+    },
+  },
+]
+
+
+================================================================================
+// File: C:\Users\Administrator\Desktop\laptopia\vite.config.js
+================================================================================
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+
+
+export default defineConfig({
+  plugins: [react()],
+  css: {
+    postcss: {
+      plugins: [
+      ],
+    }
+  }
+})
+
+================================================================================
+// File: C:\Users\Administrator\Desktop\laptopia\backend\index.js
+================================================================================
+
+import dotenv from 'dotenv';
+dotenv.config();
+console.log('JWT_SECRET:', process.env.JWT_SECRET);
+import express from 'express';
+import mongoose from 'mongoose';
+import cors from 'cors';
+
+import authRoutes from './routes/auth.js';
+import recommendationRoutes from './routes/recommendations.js';
+import laptopRoutes from './routes/laptops.js';
+import savedLaptopsRoutes from './routes/savedLaptops.js'; // << ADD THIS
+
+
+
+const app = express();
+
+app.use(cors({
+  origin:["http://localhost:5173"],
+  credentials:true,
+  methods:['GET',"POST","PUT","DELETE","PATCH"],
+  allowedHeaders:["Content-Type","Authorization"]
+}));
+app.use(express.json());
+app.use("/api/auth", authRoutes);
+app.use('/api/recommendations', recommendationRoutes);
+app.use('/api/laptops', laptopRoutes);
+app.use('/api/saved-laptops', savedLaptopsRoutes); // << ADD THIS
+
+// MongoDB connection
+mongoose.connect(process.env.MONGO_URI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+})
+.then(() => console.log('✅ MongoDB connected successfully'))
+.catch((err) => console.error('❌ MongoDB connection error:', err));
+
+// Routes
+app.use('/api/laptops', laptopRoutes);
+
+// Server start
+
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => {
+  console.log(`🚀 Server running at http://localhost:${PORT}`);
+});
+
+================================================================================
+// File: C:\Users\Administrator\Desktop\laptopia\backend\controllers\recommendationLogController.js
+================================================================================
+// controllers/recommendationLogController.js
+import RecommendationLog from "../models/RecommendationLog.js";
+
+export const autoLogRecommendation = async (req, res) => {
+  try {
+    const { userId, preferencesSource, preferences, recommendedLaptops } = req.body;
+    if (!preferencesSource || !preferences || !recommendedLaptops)
+      return res.status(400).json({ error: "Missing required fields" });
+
+    const log = new RecommendationLog({
+      userId: userId || "guest",
+      preferencesSource,
+      preferences,
+      recommendedLaptops,
+    });
+    await log.save();
+
+    res.status(201).json({ message: "Recommendation log saved", log });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+
+================================================================================
+// File: C:\Users\Administrator\Desktop\laptopia\backend\controllers\savedLaptopController.js
+================================================================================
+// controllers/savedLaptopController.js
+import SavedLaptop from "../models/SavedLaptop.js";
+
+// POST /api/saved-laptops
+export const saveLaptop = async (req, res) => {
+  try {
+    const userId = req.user._id; // set by auth middleware
+    const { laptop, preferences, preferencesSource } = req.body;
+
+    if (!laptop || !preferences)
+      return res.status(400).json({ error: "Missing required fields" });
+
+    const saved = new SavedLaptop({
+      userId,
+      laptop,
+      preferences,
+      preferencesSource: preferencesSource || "basic",
+    });
+    await saved.save();
+
+    res.status(201).json({ message: "Laptop saved", saved });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// GET /api/saved-laptops
+export const getSavedLaptops = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const laptops = await SavedLaptop.find({ userId });
+    res.json(laptops);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+// DELETE /api/saved-laptops/:id
+export const deleteSavedLaptop = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { id } = req.params;
+
+    const deleted = await SavedLaptop.findOneAndDelete({ _id: id, userId });
+    if (!deleted) return res.status(404).json({ error: "Laptop not found or not yours" });
+
+    res.json({ message: "Laptop removed", deleted });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+
+================================================================================
+// File: C:\Users\Administrator\Desktop\laptopia\backend\middleware\auth.js
+================================================================================
+// backend/middleware/auth.js
+import jwt from "jsonwebtoken";
+import User from "../models/User.js";
+
+export const authMiddleware = async (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  console.log('Auth header:', authHeader);
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({ error: "No token" });
+  }
+
+  const token = authHeader.split(" ")[1];
+  try {
+    const payload = jwt.verify(token, process.env.JWT_SECRET);
+    console.log('JWT payload:', payload);
+    const userId = payload.userId;
+    if (!userId) return res.status(401).json({ error: "Invalid token payload" });
+    req.user = await User.findById(userId);
+    if (!req.user) return res.status(401).json({ error: "User not found" });
+    next();
+  } catch (err) {
+    console.log("JWT error:", err);
+    res.status(401).json({ error: "Invalid token" });
+  }
+};
+
+
+================================================================================
+// File: C:\Users\Administrator\Desktop\laptopia\backend\middleware\authMiddleware.js
+================================================================================
+// At the top of your backend file
+const JWT_SECRET = process.env.JWT_SECRET || "keyboardcat";
+
+import jwt from "jsonwebtoken";
+
+
+export const requireAuth = (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader) return res.status(401).json({ error: "No token provided." });
+
+  const token = authHeader.split(" ")[1];
+  if (!token) return res.status(401).json({ error: "Malformed token." });
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    req.user = decoded;
+    next();
+  } catch (err) {
+    res.status(401).json({ error: "Invalid or expired token." });
+  }
+};
+
+
+================================================================================
+// File: C:\Users\Administrator\Desktop\laptopia\backend\models\Laptop.js
+================================================================================
+import mongoose from 'mongoose';
+
+const LaptopSchema = new mongoose.Schema({
+  name: String,
+  specs: String,
+  price: String,
+  image: String,
+  storeLink: String,
+  reason: String,
+
+  // Optional but still supported
+  savedBy: String,
+
+  // 🆕 Added Fields
+  preferencesSource: {
+    type: String,
+    enum: ['text', 'basic', 'advanced'],
+    required: true,
+  },
+  preferences: {
+    type: mongoose.Schema.Types.Mixed, // Accepts object (flexible schema)
+    required: true,
+  },
+  userId: {
+    type: String,
+    required: true,
+  },
+
+  createdAt: {
+    type: Date,
+    default: Date.now,
+  },
+});
+
+const Laptop = mongoose.model('Laptop', LaptopSchema);
+export default Laptop;
+
+
+================================================================================
+// File: C:\Users\Administrator\Desktop\laptopia\backend\models\RecommendationLog.js
+================================================================================
+// models/RecommendationLog.js
+
+import mongoose from 'mongoose';
+
+/**
+ * @typedef {Object} RecommendationLog
+ * @property {mongoose.Types.ObjectId|null} userId - Linked user ID (null if guest).
+ * @property {string} preferencesSource - Source of preferences: 'text', 'basic', or 'advanced'.
+ * @property {Object} preferences - The user’s input/preferences for this session.
+ * @property {Array<Object>} recommendedLaptops - Array of recommended laptop objects.
+ * @property {Date} createdAt - Log creation time (auto-added).
+ * @property {Date} updatedAt - Log update time (auto-added).
+ */
+
+/**
+ * Schema for storing recommendation sessions and results.
+ */
+const RecommendationLogSchema = new mongoose.Schema(
+  {
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null, // Null for guests, ObjectId for registered users
+    },
+    preferencesSource: {
+      type: String,
+      enum: ['text', 'basic', 'advanced'],
+      required: true,
+    },
+    preferences: {
+      type: mongoose.Schema.Types.Mixed,
+      required: true,
+    },
+    recommendedLaptops: {
+      type: [mongoose.Schema.Types.Mixed],
+      required: true,
+    },
+  },
+  { timestamps: true }
+);
+
+// 🔍 Add index for faster queries by user
+RecommendationLogSchema.index({ userId: 1 });
+
+export default mongoose.model('RecommendationLog', RecommendationLogSchema);
+
+
+================================================================================
+// File: C:\Users\Administrator\Desktop\laptopia\backend\models\SavedLaptop.js
+================================================================================
+// models/SavedLaptop.js
+
+import mongoose from "mongoose";
+
+/**
+ * @typedef {Object} SavedLaptop
+ * @property {mongoose.Types.ObjectId} userId - The user who saved this laptop.
+ * @property {Object} laptop - The laptop object/data.
+ * @property {Object} preferences - Preferences used at the time of saving.
+ * @property {string} preferencesSource - 'basic', 'advanced', or 'text'.
+ * @property {Date} savedAt - When the laptop was saved.
+ */
+
+/**
+ * Schema for user-saved laptops and context.
+ */
+const SavedLaptopSchema = new mongoose.Schema(
+  {
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    laptop: { type: mongoose.Schema.Types.Mixed, required: true },
+    preferences: { type: mongoose.Schema.Types.Mixed, required: true },
+    preferencesSource: { type: String, enum: ['basic', 'advanced', 'text'], default: 'basic' }
+  },
+  { timestamps: { createdAt: 'savedAt' } }
+);
+
+// Optional: To prevent duplicate saves per user (uncomment one as fits your data):
+// SavedLaptopSchema.index({ userId: 1, 'laptop.id': 1 }, { unique: true });
+// or, if you don’t have .id in each laptop, you could use 'laptop.name'
+
+// Export the model
+export default mongoose.model("SavedLaptop", SavedLaptopSchema);
+
+
+================================================================================
+// File: C:\Users\Administrator\Desktop\laptopia\backend\models\User.js
+================================================================================
+import mongoose from "mongoose";
+import bcrypt from "bcryptjs";
+
+const UserSchema = new mongoose.Schema({
+  email: { type: String, required: true, unique: true, lowercase: true },
+  password: { type: String, required: true },
+  name: { type: String },
+  createdAt: { type: Date, default: Date.now }
+});
+
+// Hash password before saving
+UserSchema.pre("save", async function (next) {
+  if (!this.isModified("password")) return next();
+  const salt = await bcrypt.genSalt(10);
+  this.password = await bcrypt.hash(this.password, salt);
+  next();
+});
+
+// Compare password for login
+UserSchema.methods.comparePassword = function (candidatePassword) {
+  return bcrypt.compare(candidatePassword, this.password);
+};
+
+export default mongoose.model("User", UserSchema);
+
+
+================================================================================
+// File: C:\Users\Administrator\Desktop\laptopia\backend\routes\auth.js
+================================================================================
+import express from "express";
+import User from "../models/User.js";
+import jwt from "jsonwebtoken";
+
+const router = express.Router();
+const JWT_SECRET = process.env.JWT_SECRET;
+
+
+
+
+// Register route
+router.post("/register", async (req, res) => {
+  try {
+    const { email, password, name } = req.body;
+    if (!email || !password) return res.status(400).json({ message: "Email and password required." });
+
+    const exists = await User.findOne({ email });
+    if (exists) return res.status(409).json({ message: "Email already registered." });
+
+    const user = new User({ email, password, name });
+    await user.save();
+    res.status(201).json({ message: "Registration successful!" });
+  } catch (err) {
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
+});
+
+// Login route
+router.post("/login", async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    const user = await User.findOne({ email });
+    if (!user) return res.status(401).json({ message: "Invalid credentials." });
+
+    const isMatch = await user.comparePassword(password);
+    if (!isMatch) return res.status(401).json({ message: "Invalid credentials." });
+
+    // Create JWT
+    const token = jwt.sign({ userId: user._id, email: user.email }, JWT_SECRET, { expiresIn: "2h" });
+
+    // For demo: send token as cookie or in response
+    res.status(200).json({ token, user: { _id: user._id, email: user.email, name: user.name } });
+  } catch (err) {
+    res.status(500).json({ message: "Server error", error: err.message });
+  }
+});
+
+export default router;
+
+
+================================================================================
+// File: C:\Users\Administrator\Desktop\laptopia\backend\routes\laptops.js
+================================================================================
+import express from 'express';
+import Laptop from '../models/Laptop.js';
+
+const router = express.Router();
+
+// GET all saved laptops
+router.get('/', async (req, res) => {
+  try {
+    const laptops = await Laptop.find().sort({ createdAt: -1 });
+    res.status(200).json(laptops);
+  } catch (error) {
+    console.error('Fetch error:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch laptops' });
+  }
+});
+
+// POST a new laptop with preferences and user info
+router.post('/', async (req, res) => {
+  try {
+    const {
+      name,
+      specs,
+      price,
+      image,
+      storeLink,
+      reason,
+      preferencesSource,
+      preferences,
+      userId
+    } = req.body;
+
+    if (!preferences || !preferencesSource || !userId) {
+      return res.status(401).json({ success: false, message: 'Login required or missing info' });
+    }
+
+    const newLaptop = new Laptop({
+      name,
+      specs,
+      price,
+      image,
+      storeLink,
+      reason,
+      preferencesSource,
+      preferences,
+      userId
+    });
+
+    await newLaptop.save();
+    res.status(201).json({ success: true, message: 'Laptop saved successfully', laptop: newLaptop });
+  } catch (error) {
+    console.error('Save error:', error);
+    res.status(500).json({ success: false, message: 'Server error', error });
+  }
+});
+
+// DELETE laptop by ID
+router.delete('/:id', async (req, res) => {
+  try {
+    const result = await Laptop.findByIdAndDelete(req.params.id);
+    if (!result) {
+      return res.status(404).json({ success: false, message: 'Laptop not found' });
+    }
+    res.status(200).json({ success: true, message: 'Laptop deleted' });
+  } catch (error) {
+    console.error('Delete error:', error);
+    res.status(500).json({ success: false, message: 'Failed to delete laptop', error });
+  }
+});
+
+export default router;
+
+
+================================================================================
+// File: C:\Users\Administrator\Desktop\laptopia\backend\routes\recommendations.js
+================================================================================
+// routes/recommendations.js
+import express from 'express';
+import RecommendationLog from '../models/RecommendationLog.js';
+import mongoose from 'mongoose';
+
+const router = express.Router();
+
+/**
+ * @route   POST /api/recommendations/auto-log
+ * @desc    Automatically log a recommendation event
+ * @body    { userId, preferencesSource, preferences, recommendedLaptops }
+ */
+router.post('/auto-log', async (req, res) => {
+  try {
+    let { userId = null, preferencesSource, preferences, recommendedLaptops } = req.body;
+
+    // Validate presence of all required fields
+    if (!preferencesSource)
+      return res.status(400).json({ error: 'Missing required field: preferencesSource' });
+    if (!preferences)
+      return res.status(400).json({ error: 'Missing required field: preferences' });
+    if (!recommendedLaptops)
+      return res.status(400).json({ error: 'Missing required field: recommendedLaptops' });
+
+    // If userId is a string but looks like ObjectId, convert
+    if (userId && typeof userId === "string" && mongoose.isValidObjectId(userId)) {
+      userId = new mongoose.Types.ObjectId(userId);
+    }
+    // For guests: keep as null
+
+    const log = await RecommendationLog.create({
+      userId,
+      preferencesSource,
+      preferences,
+      recommendedLaptops,
+    });
+
+    res.status(201).json({ message: 'Recommendation log saved successfully', log });
+  } catch (error) {
+    console.error('Auto-save error:', error);
+    res.status(500).json({ error: 'Failed to save recommendation log' });
+  }
+});
+
+/**
+ * @route   GET /api/recommendations/user/:userId
+ * @desc    Get all recommendation logs for a user (for dashboard/analytics)
+ */
+router.get('/user/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    if (!mongoose.isValidObjectId(userId)) {
+      return res.status(400).json({ error: 'Invalid userId' });
+    }
+    const logs = await RecommendationLog.find({ userId }).sort({ createdAt: -1 });
+    res.json({ logs });
+  } catch (error) {
+    console.error('Fetch error:', error);
+    res.status(500).json({ error: 'Failed to fetch logs' });
+  }
+});
+
+export default router;
+
+
+================================================================================
+// File: C:\Users\Administrator\Desktop\laptopia\backend\routes\savedLaptops.js
+================================================================================
+// routes/savedLaptops.js
+import express from "express";
+import {
+  saveLaptop,
+  getSavedLaptops,
+  deleteSavedLaptop,
+} from "../controllers/savedLaptopController.js";
+import { authMiddleware } from "../middleware/auth.js";
+
+const router = express.Router();
+
+router.post("/", authMiddleware, saveLaptop);
+router.get("/", authMiddleware, getSavedLaptops);
+router.delete("/:id", authMiddleware, deleteSavedLaptop);
+
+export default router;
+
+
+================================================================================
+// File: C:\Users\Administrator\Desktop\laptopia\src\App.jsx
+================================================================================
+// src/App.jsx
+import React from 'react';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+
+import Home from './components/Home';
+import About from './components/About';
+import Header from './components/Header';
+import Footer from './components/Footer';
+import LaptopRecommendations from './components/LaptopRecommendations';
+import CustomPc from './components/CustomPc';
+import LatestModelsPage from './components/LatestModelsPage';
+import LaptopDetails from './components/LaptopDetails';
+import ComponentSelection from './components/ComponentSelection';
+import BuiltPcSummary from './components/BuiltPcSummary';
+import LoginPage from './components/LoginPage';
+import RecommendedLaptops from './components/RecommendedLaptops';
+import LaptopRecommendation from './components/LaptopRecommendation';
+import SavedLaptops from './components/SavedLaptops';
+
+import CreateAccount from './components/CreateAccount'; // <--- ADD THIS LINE
+
+import { SelectedComponentsProvider } from './context/SelectedComponentsProvider';
+import { AuthProvider } from './context/AuthContext.jsx';
+
+import { ToastContainer } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+
+import styles from './App.module.css';
+
+function App() {
+  return (
+    <AuthProvider>
+      <BrowserRouter>
+        <SelectedComponentsProvider>
+          <div className={styles.layout}>
+            <Header />
+            <main className={styles.mainContent}>
+              <Routes>
+                <Route path="/" element={<Home />} />
+                <Route path="/about" element={<About />} />
+                <Route path="/recommendations" element={<LaptopRecommendations />} />
+                <Route path="/laptop-recommendation" element={<LaptopRecommendation />} />
+                <Route path="/custom-pc" element={<CustomPc />} />
+                <Route path="/latest" element={<LatestModelsPage />} />
+                <Route path="/laptop-details" element={<LaptopDetails />} />
+                <Route path="/custom-pc/select/:componentName" element={<ComponentSelection />} />
+                <Route path="/built-pc-summary" element={<BuiltPcSummary />} />
+                <Route path="/login" element={<LoginPage />} />
+                <Route path="/recommended-laptops" element={<RecommendedLaptops />} />
+                <Route path="/saved" element={<SavedLaptops />} />
+                <Route path="/create-account" element={<CreateAccount />} /> {/* <-- ADD THIS LINE */}
+              </Routes>
+            </main>
+            <Footer />
+          </div>
+          <ToastContainer position="top-center" autoClose={3000} hideProgressBar />
+        </SelectedComponentsProvider>
+      </BrowserRouter>
+    </AuthProvider>
+  );
+}
+
+export default App;
+
+
+================================================================================
+// File: C:\Users\Administrator\Desktop\laptopia\src\App.module.css
+================================================================================
+/* App.module.css */
+.layout {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.mainContent {
+  flex: 1;
+  padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+================================================================================
+// File: C:\Users\Administrator\Desktop\laptopia\src\main.jsx
+================================================================================
+import { StrictMode } from 'react'
+import { createRoot } from 'react-dom/client'
+import App from './App'
+
+createRoot(document.getElementById('root')).render(
+  <StrictMode>
+    <App />
+  </StrictMode>,
+  document.getElementById('root')
+)
+
+================================================================================
+// File: C:\Users\Administrator\Desktop\laptopia\src\components\About.jsx
+================================================================================
+import styles from './About.module.css';
+
+const About = () => {
+  return (
+    <div className={styles.aboutContainer}>
+      <h1 className={styles.aboutTitle}>About LAPTOPIA</h1>
+      <p className={styles.aboutSubtitle}>
+        We are a team of passionate technology enthusiasts dedicated to revolutionizing the way people discover and purchase laptops and custom PCs.
+      </p>
+      <div className={styles.stats}>
+        <div className={styles.statItem}>
+          <h2 className={styles.statNumber}>1000+</h2>
+          <p className={styles.statDescription}>Satisfied Customers</p>
+        </div>
+        <div className={styles.statItem}>
+          <h2 className={styles.statNumber}>500+</h2>
+          <p className={styles.statDescription}>Custom PCs Built</p>
+        </div>
+        <div className={styles.statItem}>
+          <h2 className={styles.statNumber}>24/7</h2>
+          <p className={styles.statDescription}>AI Monitoring</p>
+        </div>
+      </div>
+      <div className={styles.team}>
+        <h2 className={styles.teamTitle}>Meet Our Team</h2>
+        <div className={styles.teamMembers}>
+          <div className={styles.teamMember}>
+            <img src="path_to_team_member_1.jpg" alt="Team Member 1" className={styles.teamMemberImage} />
+            <h3 className={styles.teamMemberName}>John Doe</h3>
+            <p className={styles.teamMemberRole}>CEO</p>
+          </div>
+          <div className={styles.teamMember}>
+            <img src="path_to_team_member_2.jpg" alt="Team Member 2" className={styles.teamMemberImage} />
+            <h3 className={styles.teamMemberName}>Jane Smith</h3>
+            <p className={styles.teamMemberRole}>CTO</p>
+          </div>
+          {/* Add more team members as needed */}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default About;
+
+================================================================================
+// File: C:\Users\Administrator\Desktop\laptopia\src\components\About.module.css
+================================================================================
+.aboutContainer {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+  text-align: center;
+}
+
+.aboutTitle {
+  font-size: 2.5rem;
+  margin-bottom: 1rem;
+  color: #0f172a;
+}
+
+.aboutSubtitle {
+  font-size: 1.25rem;
+  opacity: 0.9;
+  color: #4b5563;
+  margin-bottom: 2rem;
+}
+
+.stats {
+  display: flex;
+  justify-content: space-around;
+  margin-bottom: 3rem;
+}
+
+.statItem {
+  text-align: center;
+}
+
+.statNumber {
+  font-size: 2rem;
+  color: #3b82f6;
+  margin-bottom: 0.5rem;
+}
+
+.statDescription {
+  color: #4b5563;
+}
+
+.team {
+  margin-bottom: 3rem;
+}
+
+.teamTitle {
+  font-size: 2rem;
+  margin-bottom: 1rem;
+  color: #0f172a;
+}
+
+.teamMembers {
+  display: flex;
+  justify-content: space-around;
+  flex-wrap: wrap;
+}
+
+.teamMember {
+  width: 30%;
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.teamMemberImage {
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  margin-bottom: 1rem;
+}
+
+.teamMemberName {
+  font-size: 1.25rem;
+  margin-bottom: 0.5rem;
+  color: #0f172a;
+}
+
+.teamMemberRole {
+  color: #4b5563;
+}
+
+@media (max-width: 768px) {
+  .stats {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .statItem {
+    margin-bottom: 1rem;
+  }
+
+  .teamMembers {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .teamMember {
+    width: 80%;
+  }
+}
+
+================================================================================
+// File: C:\Users\Administrator\Desktop\laptopia\src\components\BuiltPcSummary.jsx
+================================================================================
+import React from 'react';
+import { useNavigate } from 'react-router-dom';
+import styles from './BuiltPcSummary.module.css';
+
+const BuiltPcSummary = () => {
+  const navigate = useNavigate();
+
+  // Dummy data for the selected components
+  const selectedComponents = [
+    { name: 'CPU', details: 'Intel Core i9-12900K', price: 599 },
+    { name: 'GPU', details: 'NVIDIA GeForce RTX 3080', price: 799 },
+    { name: 'Motherboard', details: 'ASUS ROG Maximus XIII Hero', price: 499 },
+    { name: 'Memory', details: 'Corsair Vengeance RGB Pro 32GB', price: 199 },
+    { name: 'Storage', details: 'Samsung 970 EVO Plus 1TB', price: 129 },
+    { name: 'Case', details: 'NZXT H510', price: 89 },
+    { name: 'Power Supply', details: 'Corsair RM750x', price: 149 },
+    { name: 'Operating System', details: 'Windows 10 Pro', price: 199 },
+    { name: 'Monitor', details: 'Dell UltraSharp U2720Q', price: 499 },
+  ];
+
+  const estimatedWattage = 750;
+  const totalPrice = selectedComponents.reduce((total, component) => total + component.price, 0);
+  const usage = 'Gaming and Professional Use';
+
+  const handleLoginClick = () => {
+    navigate('/login');
+  };
+
+  return (
+    <div className={styles.builtPcSummaryContainer}>
+      <h1 className={styles.pageTitle}>Your Built PC</h1>
+      <div className={styles.summaryDetails}>
+        <h2 className={styles.sectionTitle}>Selected Components</h2>
+        <table className={styles.componentsTable}>
+          <thead>
+            <tr>
+              <th>Component</th>
+              <th>Details</th>
+              <th>Price</th>
+            </tr>
+          </thead>
+          <tbody>
+            {selectedComponents.map((component, index) => (
+              <tr key={index}>
+                <td>{component.name}</td>
+                <td>{component.details}</td>
+                <td>${component.price}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <div className={styles.summaryInfo}>
+          <p><strong>Estimated Power Wattage:</strong> {estimatedWattage}W</p>
+          <p><strong>Total Price:</strong> ${totalPrice}</p>
+          <p><strong>Usage:</strong> {usage}</p>
+        </div>
+        <button onClick={handleLoginClick} className={styles.loginButton}>
+          Login to save the custom built
+        </button>
+      </div>
+    </div>
+  );
+};
+
+export default BuiltPcSummary;
+
+================================================================================
+// File: C:\Users\Administrator\Desktop\laptopia\src\components\BuiltPcSummary.module.css
+================================================================================
+.builtPcSummaryContainer {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+    text-align: center;
+    background: #f8fafc;
+    border-radius: 1rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  }
+  
+  .pageTitle {
+    font-size: 2rem;
+    margin-bottom: 1rem;
+    color: #1e3a8a;
+  }
+  
+  .summaryDetails {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .sectionTitle {
+    font-size: 1.5rem;
+    margin-bottom: 1rem;
+    color: #3b82f6;
+  }
+  
+  .componentsTable {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1rem;
+  }
+  
+  .componentsTable th,
+  .componentsTable td {
+    padding: 0.5rem;
+    border: 1px solid #ddd;
+  }
+  
+  .summaryInfo {
+    margin-top: 2rem;
+    font-size: 1.25rem;
+  }
+  
+  @media (max-width: 768px) {
+    .builtPcSummaryContainer {
+      padding: 1rem;
+    }
+  
+    .componentsTable {
+      font-size: 0.9rem;
+    }
+  }
+
+  .builtPcSummaryContainer {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+    text-align: center;
+    background: #f8fafc;
+    border-radius: 1rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  }
+  
+  .pageTitle {
+    font-size: 2rem;
+    margin-bottom: 1rem;
+    color: #1e3a8a;
+  }
+  
+  .summaryDetails {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .sectionTitle {
+    font-size: 1.5rem;
+    margin-bottom: 1rem;
+    color: #3b82f6;
+  }
+  
+  .componentsTable {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1rem;
+  }
+  
+  .componentsTable th,
+  .componentsTable td {
+    padding: 0.5rem;
+    border: 1px solid #ddd;
+  }
+  
+  .summaryInfo {
+    margin-top: 2rem;
+    font-size: 1.25rem;
+  }
+  
+  .loginButton {
+    padding: 0.75rem 1.5rem;
+    background-color: #3b82f6;
+    color: white;
+    border: none;
+    border-radius: 0.375rem;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    margin-top: 1rem;
+  }
+  
+  .loginButton:hover {
+    background-color: #2563eb;
+  }
+  
+  @media (max-width: 768px) {
+    .builtPcSummaryContainer {
+      padding: 1rem;
+    }
+  
+    .componentsTable {
+      font-size: 0.9rem;
+    }
+  }
+
+================================================================================
+// File: C:\Users\Administrator\Desktop\laptopia\src\components\ComponentSelection.jsx
+================================================================================
+import React, { useState, useEffect, useContext } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import FiltersSection from './FiltersSection';
+import { SelectedComponentsContext } from '../context/SelectedComponentsContext';
+import styles from './ComponentSelection.module.css';
+
+const ComponentSelection = () => {
+  const { componentName } = useParams();
+  const { setSelectedComponents } = useContext(SelectedComponentsContext);
+  const [components, setComponents] = useState([]);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    console.log('Fetching data for component:', componentName);
+    const fetchComponentData = async () => {
+      try {
+        const response = await fetch(`/data/${componentName.toLowerCase()}s.json`);
+        if (!response.ok) {
+          throw new Error('Network response was not ok');
+        }
+        const data = await response.json();
+        setComponents(data);
+      } catch (error) {
+        console.error('Error fetching component data:', error);
+      }
+    };
+
+    fetchComponentData();
+  }, [componentName]);
+
+  const handleAddComponent = (component) => {
+    setSelectedComponents((prevComponents) => [...prevComponents, component]);
+    navigate('/custom-pc');
+  };
+
+  return (
+    <div className={styles.selectionContainer}>
+      <h1 className={styles.pageTitle}>Choose a {componentName.replace(/-/g, ' ').toUpperCase()}</h1>
+      <div className={styles.contentWrapper}>
+        <FiltersSection />
+        <div className={styles.componentList}>
+          <h2 className={styles.listTitle}>Available {componentName.replace(/-/g, ' ').toUpperCase()}s</h2>
+          <table className={styles.componentsTable}>
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Core Count</th>
+                <th>Performance Core Clock</th>
+                <th>Performance Core Boost Clock</th>
+                <th>Microarchitecture</th>
+                <th>TDP</th>
+                <th>Integrated Graphics</th>
+                <th>Rating</th>
+                <th>Price</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {components.map((component, index) => (
+                <tr key={index}>
+                  <td>{component.name}</td>
+                  <td>{component.coreCount}</td>
+                  <td>{component.performanceCoreClock}</td>
+                  <td>{component.performanceCoreBoostClock}</td>
+                  <td>{component.microarchitecture}</td>
+                  <td>{component.tdp}</td>
+                  <td>{component.integratedGraphics}</td>
+                  <td>{component.rating}</td>
+                  <td>${component.price}</td>
+                  <td>
+                    <button
+                      onClick={() => handleAddComponent(component)}
+                      className={styles.addButton}
+                    >
+                      Add
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default ComponentSelection;
+
+================================================================================
+// File: C:\Users\Administrator\Desktop\laptopia\src\components\ComponentSelection.module.css
+================================================================================
+.selectionContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  text-align: center;
+  max-width: 1200px; 
+  width:100%; 
+  margin: 0 auto;
+  background: #f8fafc;
+  border-radius: 1rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.pageTitle {
+  font-size: 2rem;
+  margin-bottom: 1rem;
+  color: #3b82f6;
+}
+
+.contentWrapper {
+  display: flex;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.filterSection {
+  width: 30%;
+  margin-right: 2rem;
+  padding: 1rem;
+  background: white;
+  border-radius: 0.5rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.filterTitle {
+  font-size: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.filterGroup {
+  margin-bottom: 1rem;
+}
+
+.filterGroup label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: bold;
+}
+
+.componentList {
+  flex: 1;
+  padding: 1rem;
+  background: white;
+  border-radius: 0.5rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.listTitle {
+  font-size: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.componentsTable {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.componentsTable th,
+.componentsTable td {
+  padding: 0.5rem;
+  border: 1px solid #ddd;
+}
+
+@media (max-width: 768px) {
+  .contentWrapper {
+    flex-direction: column;
+  }
+
+  .filterSection {
+    width: 100%;
+    margin-right: 0;
+    margin-bottom: 2rem;
+  }
+
+  .componentList {
+    width: 100%;
+  }
+}
+
+.contentWrapper {
+  display: flex;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+@media (max-width: 768px) {
+  .contentWrapper {
+    flex-direction: column;
+  }
+}
+.contentWrapper {
+  display: flex;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+@media (max-width: 768px) {
+  .contentWrapper {
+    flex-direction: column;
+  }
+}
+
+.addButton {
+  background-color: #3b82f6;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 0.25rem;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.addButton:hover {
+  background-color: #2563eb;
+}
+
+.addButton {
+  background-color: #3b82f6;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 0.25rem;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.addButton:hover {
+  background-color: #2563eb;
+}
+
+.addButton {
+  background-color: #3b82f6;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 0.25rem;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.addButton:hover {
+  background-color: #2563eb;
+}
+
+================================================================================
+// File: C:\Users\Administrator\Desktop\laptopia\src\components\CreateAccount.jsx
+================================================================================
+// src/components/Auth/CreateAccount.jsx
+import React, { useState, useRef, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { FaUserAlt, FaEnvelope, FaLock, FaEye, FaEyeSlash, FaSpinner } from "react-icons/fa";
+import styles from "./CreateAccount.module.css";
+
+const PASSWORD_REGEX = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d@$!%*#?&^_-]{8,}$/;
+
+const CreateAccount = () => {
+  const nameRef = useRef();
+  const emailRef = useRef();
+  const [form, setForm] = useState({
+    name: "",
+    email: "",
+    password: "",
+    confirmPassword: "",
+  });
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState({});
+  const [success, setSuccess] = useState("");
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    nameRef.current.focus();
+  }, []);
+
+  // Inline validation on change
+  const validate = (key, value) => {
+    switch (key) {
+      case "name":
+        return value.trim() ? "" : "Name is required.";
+      case "email":
+        return /^\S+@\S+\.\S+$/.test(value)
+          ? ""
+          : "Please enter a valid email address.";
+      case "password":
+        if (!value) return "Password is required.";
+        if (!PASSWORD_REGEX.test(value))
+          return "Min 8 characters, at least one letter & one number.";
+        return "";
+      case "confirmPassword":
+        return value === form.password
+          ? ""
+          : "Passwords do not match.";
+      default:
+        return "";
+    }
+  };
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setForm((prev) => ({ ...prev, [name]: value }));
+
+    // Validate field immediately
+    setErrors((prev) => ({
+      ...prev,
+      [name]: validate(name, value),
+    }));
+  };
+
+  // Validate whole form before submit
+  const isFormValid = () => {
+    const newErrors = {};
+    Object.entries(form).forEach(([k, v]) => {
+      const err = validate(k, v);
+      if (err) newErrors[k] = err;
+    });
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setSuccess("");
+    if (!isFormValid()) return;
+
+    setLoading(true);
+    try {
+      const response = await fetch("http://localhost:5000/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: form.name.trim(),
+          email: form.email.trim(),
+          password: form.password,
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.message || "Registration failed");
+      }
+      setSuccess("Account created! Redirecting to login...");
+      setTimeout(() => navigate("/login", { replace: true }), 1500);
+    } catch (err) {
+      setErrors((prev) => ({
+        ...prev,
+        general: err.message.includes("already")
+          ? "Email already registered."
+          : err.message,
+      }));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className={styles.createAccountContainer} aria-label="Registration Form">
+      <form
+        className={styles.createAccountForm}
+        onSubmit={handleSubmit}
+        autoComplete="off"
+        aria-describedby="form-errors"
+      >
+        <div className={styles.logoRow}>
+          <img
+            src="/favicon.ico"
+            alt="Laptopia Logo"
+            className={styles.logoImg}
+          />
+          <h1 className={styles.brandTitle}>LAPTOPIA</h1>
+        </div>
+        <h2 className={styles.createTitle}>Create Your Account</h2>
+
+        <div className={styles.formGroup}>
+          <label htmlFor="name">
+            <FaUserAlt className={styles.inputIcon} /> Name
+          </label>
+          <input
+            ref={nameRef}
+            id="name"
+            name="name"
+            type="text"
+            value={form.name}
+            onChange={handleChange}
+            placeholder="Your Name"
+            autoComplete="name"
+            tabIndex={0}
+            required
+            aria-required="true"
+            aria-invalid={!!errors.name}
+            aria-describedby={errors.name ? "error-name" : undefined}
+            disabled={loading}
+          />
+          {errors.name && (
+            <span id="error-name" className={styles.error}>{errors.name}</span>
+          )}
+        </div>
+
+        <div className={styles.formGroup}>
+          <label htmlFor="email">
+            <FaEnvelope className={styles.inputIcon} /> Email
+          </label>
+          <input
+            ref={emailRef}
+            id="email"
+            name="email"
+            type="email"
+            value={form.email}
+            onChange={handleChange}
+            placeholder="you@example.com"
+            autoComplete="email"
+            tabIndex={0}
+            required
+            aria-required="true"
+            aria-invalid={!!errors.email}
+            aria-describedby={errors.email ? "error-email" : undefined}
+            disabled={loading}
+          />
+          {errors.email && (
+            <span id="error-email" className={styles.error}>{errors.email}</span>
+          )}
+        </div>
+
+        <div className={styles.formGroup}>
+          <label htmlFor="password">
+            <FaLock className={styles.inputIcon} /> Password
+          </label>
+          <div className={styles.passwordInput}>
+            <input
+              id="password"
+              name="password"
+              type={showPassword ? "text" : "password"}
+              value={form.password}
+              onChange={handleChange}
+              placeholder="Min 8 characters, 1 letter, 1 number"
+              autoComplete="new-password"
+              tabIndex={0}
+              required
+              aria-required="true"
+              aria-invalid={!!errors.password}
+              aria-describedby={errors.password ? "error-password" : undefined}
+              disabled={loading}
+            />
+            <button
+              type="button"
+              className={styles.togglePassword}
+              onClick={() => setShowPassword((v) => !v)}
+              aria-label={showPassword ? "Hide password" : "Show password"}
+              disabled={loading}
+            >
+              {showPassword ? <FaEyeSlash /> : <FaEye />}
+            </button>
+          </div>
+          {errors.password && (
+            <span id="error-password" className={styles.error}>{errors.password}</span>
+          )}
+        </div>
+
+        <div className={styles.formGroup}>
+          <label htmlFor="confirmPassword">
+            <FaLock className={styles.inputIcon} /> Confirm Password
+          </label>
+          <div className={styles.passwordInput}>
+            <input
+              id="confirmPassword"
+              name="confirmPassword"
+              type={showConfirm ? "text" : "password"}
+              value={form.confirmPassword}
+              onChange={handleChange}
+              placeholder="Re-enter your password"
+              autoComplete="new-password"
+              tabIndex={0}
+              required
+              aria-required="true"
+              aria-invalid={!!errors.confirmPassword}
+              aria-describedby={
+                errors.confirmPassword ? "error-confirm" : undefined
+              }
+              disabled={loading}
+            />
+            <button
+              type="button"
+              className={styles.togglePassword}
+              onClick={() => setShowConfirm((v) => !v)}
+              aria-label={showConfirm ? "Hide confirm password" : "Show confirm password"}
+              disabled={loading}
+            >
+              {showConfirm ? <FaEyeSlash /> : <FaEye />}
+            </button>
+          </div>
+          {errors.confirmPassword && (
+            <span id="error-confirm" className={styles.error}>
+              {errors.confirmPassword}
+            </span>
+          )}
+        </div>
+
+        {errors.general && (
+          <div className={styles.error} id="form-errors" role="alert">
+            {errors.general}
+          </div>
+        )}
+        {success && (
+          <div className={styles.success} role="status">
+            {success}
+          </div>
+        )}
+        <button
+          type="submit"
+          className={styles.createButton}
+          disabled={loading || !form.name || !form.email || !form.password || !form.confirmPassword || Object.values(errors).some(Boolean)}
+          aria-disabled={loading || Object.values(errors).some(Boolean)}
+        >
+          {loading ? <FaSpinner className={styles.spinner} /> : "Create Account"}
+        </button>
+      </form>
+    </div>
+  );
+};
+
+export default CreateAccount;
+
+
+================================================================================
+// File: C:\Users\Administrator\Desktop\laptopia\src\components\CreateAccount.module.css
+================================================================================
+/* src/components/Auth/CreateAccount.module.css */
+.createAccountContainer {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f5f6fa;
+  }
+  
+  .createAccountForm {
+    background: #fff;
+    padding: 2.2rem 2rem 2.2rem 2rem;
+    border-radius: 18px;
+    box-shadow: 0 8px 36px 0 rgba(60,70,110,0.15);
+    width: 100%;
+    max-width: 370px;
+    display: flex;
+    flex-direction: column;
+    gap: 1.1rem;
+  }
+  
+  .logoRow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin-bottom: 8px;
+  }
+  .logoImg {
+    width: 38px;
+    height: 38px;
+    border-radius: 8px;
+    background: #fafbff;
+  }
+  .brandTitle {
+    font-size: 1.3rem;
+    letter-spacing: 2px;
+    font-weight: 600;
+    color: #204280;
+    margin: 0;
+  }
+  
+  .createTitle {
+    margin-bottom: 2px;
+    font-size: 1.45rem;
+    font-weight: 600;
+    color: #23355b;
+    text-align: center;
+  }
+  
+  .formGroup {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-bottom: 0;
+  }
+  
+  .formGroup label {
+    font-weight: 500;
+    color: #3e4b6d;
+    margin-bottom: 3px;
+    font-size: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  
+  .inputIcon {
+    color: #3653a2;
+    font-size: 1rem;
+  }
+  
+  input[type="text"],
+  input[type="email"],
+  input[type="password"] {
+    padding: 0.65rem 0.85rem;
+    border-radius: 7px;
+    border: 1.5px solid #cfd6e5;
+    font-size: 1rem;
+    transition: border 0.16s;
+    outline: none;
+    background: #fafdff;
+    color: #263053;
+  }
+  
+  input:focus {
+    border-color: #6a90f9;
+    background: #f2f8ff;
+  }
+  
+  input[aria-invalid="true"] {
+    border-color: #e0503e;
+    background: #fff4f4;
+  }
+  
+  .passwordInput {
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+  
+  .togglePassword {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    border: none;
+    background: none;
+    color: #8391a7;
+    font-size: 1.14rem;
+    cursor: pointer;
+    outline: none;
+    padding: 0 6px;
+    z-index: 2;
+  }
+  
+  .togglePassword:active {
+    color: #3551b5;
+  }
+  
+  .createButton {
+    margin-top: 10px;
+    padding: 0.72rem 0;
+    font-size: 1.07rem;
+    font-weight: 600;
+    background: linear-gradient(90deg, #385fe7 50%, #36b0e7 100%);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    box-shadow: 0 2px 18px 0 rgba(40,98,255,0.08);
+    transition: background 0.18s, opacity 0.18s;
+  }
+  .createButton[disabled],
+  .createButton[aria-disabled="true"] {
+    opacity: 0.55;
+    cursor: not-allowed;
+  }
+  
+  .error {
+    color: #e05d4a;
+    font-size: 0.99rem;
+    margin-top: 4px;
+    margin-bottom: 3px;
+    background: #fff1f1;
+    padding: 3px 7px;
+    border-radius: 5px;
+    border: 1px solid #ffe3e3;
+    font-weight: 500;
+  }
+  
+  .success {
+    color: #188348;
+    background: #eaffee;
+    font-size: 1rem;
+    margin: 8px 0 3px 0;
+    padding: 4px 7px;
+    border-radius: 5px;
+    border: 1px solid #b0eed2;
+    font-weight: 500;
+    text-align: center;
+  }
+  
+  .spinner {
+    animation: spin 1s linear infinite;
+    font-size: 1.15rem;
+    vertical-align: middle;
+  }
+  @keyframes spin {
+    100% { transform: rotate(360deg); }
+  }
+  
+  /* Responsive */
+  @media (max-width: 550px) {
+    .createAccountForm {
+      padding: 1.2rem 0.4rem 1.5rem 0.4rem;
+      max-width: 98vw;
+      border-radius: 8px;
+    }
+    .logoImg { width: 31px; height: 31px; }
+    .brandTitle { font-size: 1.05rem; }
+  }
+  
+
+================================================================================
+// File: C:\Users\Administrator\Desktop\laptopia\src\components\CustomPc.jsx
+================================================================================
+import React, { useContext } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { SelectedComponentsContext } from '../context/SelectedComponentsContext';
+import styles from './CustomPc.module.css';
+
+const CustomPc = () => {
+  const navigate = useNavigate();
+  const { selectedComponents, setSelectedComponents } = useContext(SelectedComponentsContext);
+
+  const components = [
+    'CPU',
+    'CPU Cooler',
+    'Motherboard',
+    'Memory',
+    'Storage',
+    'Video Card',
+    'Case',
+    'Power Supply',
+    'Operating System',
+    'Monitor',
+  ];
+
+  const handleViewBuildPc = () => {
+    navigate('/built-pc-summary');
+  };
+
+  const handleDeleteComponent = (index) => {
+    const updatedComponents = [...selectedComponents];
+    updatedComponents.splice(index, 1);
+    setSelectedComponents(updatedComponents);
+  };
+
+  return (
+    <div className={styles.customPcContainer}>
+      <h1 className={styles.pageTitle}>Custom PC Builder</h1>
+      <div className={styles.statusBar}>
+        <div className={styles.compatibilityStatus}>
+          <span>Compatibility:</span> No issues or incompatibilities found.
+        </div>
+        <div className={styles.separator}></div>
+        <div className={styles.estimatedWattage}>
+          <span>Estimated Wattage:</span> 0W
+        </div>
+      </div>
+      <table className={styles.table}>
+        <thead>
+          <tr>
+            <th>Component</th>
+            <th>Selection</th>
+            <th>Price</th>
+            <th>Availability</th>
+            <th>Power</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {components.map((component, index) => (
+            <tr key={index}>
+              <td>{component}</td>
+              <td>
+                <Link to={`/custom-pc/select/${component.toLowerCase()}`} className={styles.selectionButton}>
+                  Add {component}
+                </Link>
+              </td>
+              <td></td>
+              <td></td>
+              <td></td>
+              <td>
+                {selectedComponents.some((comp) => comp.name === component) && (
+                  <button
+                    onClick={() => handleDeleteComponent(index)}
+                    className={styles.deleteButton}
+                  >
+                    X
+                  </button>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <button onClick={handleViewBuildPc} className={styles.viewBuildButton}>
+        View Build PC
+      </button>
+    </div>
+  );
+};
+
+export default CustomPc;
+
+================================================================================
+// File: C:\Users\Administrator\Desktop\laptopia\src\components\CustomPc.module.css
+================================================================================
+.customPcContainer {
+  max-width: 100%;
+  margin: 2rem auto;
+  padding: 1rem;
+  text-align: center;
+  background: #f8fafc;
+  border-radius: 1rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.pageTitle {
+  font-size: 2rem;
+  margin-bottom: 1rem;
+  color: #1e3a8a;
+}
+
+.statusBar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #f8fafc;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  margin-bottom: 2rem;
+  width:100vw;
+}
+
+.compatibilityStatus, .estimatedWattage {
+  font-size: 1rem;
+  color: #4b5563;
+  flex-basis: 70%;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.separator {
+  flex-basis: 30%;
+  border-left: 2px solid #3b82f6;
+  height: 1.5rem;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1rem;
+}
+
+.table th,
+.table td {
+  border: 1px solid #ddd;
+  padding: 0.5rem;
+  text-align: left;
+}
+
+.table thead {
+  background-color: #f8fafc;
+}
+
+.table tbody tr:nth-child(even) {
+  background-color: #f9f9f9;
+}
+
+.table tbody tr:hover {
+  background-color: #f1f1f1;
+}
+
+.selectionButton {
+  padding: 0.5rem 1rem;
+  background-color: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 0.25rem;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.selectionButton:hover {
+  background-color: #2563eb;
+}
+
+.viewBuildButton {
+  padding: 0.5rem 1rem;
+  background-color: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 0.25rem;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  margin-top: 2rem;
+}
+
+.viewBuildButton:hover {
+  background-color: #2563eb;
+}
+
+.error {
+  color: red;
+  margin-bottom: 1rem;
+}
+
+@media (max-width: 768px) {
+  .customPcContainer {
+    padding: 1rem;
+  }
+
+  .statusBar {
+    flex-direction: column;
+  }
+
+  .separator {
+    display: none;
+  }
+
+  .table {
+    font-size: 0.9rem;
+  }
+}
+
+.deleteButton {
+  background: none;
+  border: none;
+  color: red;
+  font-size: 1.2rem;
+  cursor: pointer;
+}
+
+.deleteButton:hover {
+  color: darkred;
+}
+
+================================================================================
+// File: C:\Users\Administrator\Desktop\laptopia\src\components\CustomPcBuilder.jsx
+================================================================================
+import React from 'react';
+import { useNavigate } from 'react-router-dom';
+import styles from './CustomPcBuilder.module.css';
+
+const CustomPcBuilder = () => {
+  const navigate = useNavigate();
+
+  return (
+    <div className={styles.customPcBuilderSection}>
+      <h2 className={styles.sectionTitle}>Build Your Dream PC</h2>
+      <p className={styles.sectionDescription}>
+        Customize every component to create your perfect computer.
+      </p>
+      <div className={styles.customPcVisual}>
+        {/* Image instead of iframe */}
+        <img
+          src="../../public/images/gamingPc.jpg"
+          alt="3D PC Model"
+          className={styles.customPcImage}
+        />
+      </div>
+      <button onClick={() => navigate('/custom-pc')} className={styles.ctaButton}>Start Building</button>
+    </div>
+  );
+};
+
+export default CustomPcBuilder;
+
+================================================================================
+// File: C:\Users\Administrator\Desktop\laptopia\src\components\CustomPcBuilder.module.css
+================================================================================
+.customPcBuilderSection {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  margin-bottom: 3rem;
+  padding: 2rem;
+  background: #f8fafc;
+  border-radius: 1rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.customPcBuilderSection h2 {
+  font-size: 2rem;
+  margin-bottom: 1rem;
+  color: #1e3a8a;
+}
+
+.customPcBuilderSection p {
+  font-size: 1.1rem;
+  margin-bottom: 2rem;
+  color: #4b5563;
+}
+
+.customPcVisual {
+  width: 100%;
+  max-width: 600px;
+  margin: 0 auto;
+  border-radius: 0.5rem;
+  overflow: hidden;
+  position: relative;
+}
+
+.customPcImage {
+  width: 100%;
+  height: auto;
+  border-radius: 0.5rem;
+  transition: opacity 0.5s ease;
+  opacity: 0;
+  animation: fadeIn 1s ease forwards;
+}
+
+.ctaButton {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.75rem 2rem;
+  background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+  color: white;
+  text-decoration: none;
+  border-radius: 9999px;
+  font-weight: 600;
+  font-size: 1rem;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+  z-index: 1;
+}
+
+.ctaButton::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, #2563eb, #7c3aed);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  z-index: -1;
+}
+
+.ctaButton:hover::before {
+  opacity: 1;
+}
+
+.ctaButton span {
+  position: relative;
+  z-index: 2;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* CustomPcBuilder.module.css */
+
+.customPcBuilderSection {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  margin-bottom: 3rem;
+  padding: 1rem; /* Reduced padding to remove the blank space at the top */
+  background: #f8fafc;
+  border-radius: 1rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.customPcBuilderSection h2 {
+  font-size: 2rem;
+  margin-bottom: 1rem;
+  color: #1e3a8a;
+}
+
+.customPcBuilderSection p {
+  font-size: 1.1rem;
+  margin-bottom: 2rem;
+  color: #4b5563;
+}
+
+.customPcVisual {
+  width: 100%;
+  max-width: 600px;
+  margin: 0 auto;
+  border-radius: 0.5rem;
+  overflow: hidden;
+  position: relative;
+}
+
+.customPcImage {
+  width: 100%;
+  height: auto;
+  border-radius: 0.5rem;
+  transition: opacity 0.5s ease;
+  opacity: 0;
+  animation: fadeIn 1s ease forwards;
+}
+
+.ctaButton {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.75rem 2rem;
+  background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+  color: white;
+  text-decoration: none;
+  border-radius: 9999px;
+  font-weight: 600;
+  font-size: 1rem;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+  z-index: 1;
+}
+
+.ctaButton::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, #2563eb, #7c3aed);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  z-index: -1;
+}
+
+.ctaButton:hover::before {
+  opacity: 1;
+}
+
+.ctaButton span {
+  position: relative;
+  z-index: 2;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+
+
+================================================================================
+// File: C:\Users\Administrator\Desktop\laptopia\src\components\FilterBar.jsx
+================================================================================
+// FilterBar.jsx
+import React from 'react';
+import styles from './FilterBar.module.css';
+
+const FilterBar = ({ onSort, onFilterChange }) => {
+  return (
+    <div className={styles.filterBar}>
+      <div className={styles.sort}>
+        <label htmlFor="sort">Sort by:</label>
+        <select id="sort" onChange={(e) => onSort?.(e.target.value)}>
+          <option value="default">Default</option>
+          <option value="priceAsc">Price: Low to High</option>
+          <option value="priceDesc">Price: High to Low</option>
+          <option value="performance">Performance</option>
+          <option value="battery">Battery Life</option>
+        </select>
+      </div>
+
+      <div className={styles.toggles}>
+        <label>
+          <input type="checkbox" onChange={(e) => onFilterChange?.('inStock', e.target.checked)} />
+          In Stock Only
+        </label>
+        <label>
+          <input type="checkbox" onChange={(e) => onFilterChange?.('gpuNvidia', e.target.checked)} />
+          Nvidia GPU
+        </label>
+      </div>
+    </div>
+  );
+};
+
+export default FilterBar;
+
+
+================================================================================
+// File: C:\Users\Administrator\Desktop\laptopia\src\components\FilterBar.module.css
+================================================================================
+.filterBar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: #f3f4f6;
+    padding: 1rem;
+    border-radius: 0.5rem;
+    box-shadow: 0 1px 5px rgba(0, 0, 0, 0.05);
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+  
+  .sort {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  
+  .sort select {
+    padding: 0.4rem;
+    border-radius: 0.375rem;
+    border: 1px solid #d1d5db;
+  }
+  
+  .toggles {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+  
+  .toggles label {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.95rem;
+  }
+  
+
+================================================================================
+// File: C:\Users\Administrator\Desktop\laptopia\src\components\FiltersSection.jsx
+================================================================================
+import React, { useState } from 'react';
+import styles from './FiltersSection.module.css';
+
+const FiltersSection = () => {
+  const [isMerchantsOpen, setIsMerchantsOpen] = useState(false);
+  const [selectedMerchants, setSelectedMerchants] = useState([]);
+  const [priceRange, setPriceRange] = useState([0, 2780]);
+  const merchants = [
+    'All', 'Abt', 'Adorama', 'Amazon', 'ASUS', 'B&H', 'Best Buy', 
+    'Corsair', 'Das Keyboard', 'Dell Technologies', 'GameStop', 
+    'HP', 'HYTE', 'iBUYPOWER', 'JBL', 'Lenovo', 'LG', 'Logitech', 
+    'MemoryC', 'ModMyMods', 'Monoprice', 'MSI', 'Newegg', 
+    'Newegg Sellers', 'NZXT', 'Other World Computing', 'Razer', 
+    'Samsung', 'SanDisk', 'Target', 'Western Digital'
+  ];
+  const [coreCount, setCoreCount] = useState([1, 64]);
+  const [threadCount, setThreadCount] = useState([1, 128]);
+  const [coreClock, setCoreClock] = useState([1.1, 4.7]);
+  const [l2Cache, setL2Cache] = useState([0.25, 40]);
+  const [l3Cache, setL3Cache] = useState([0, 256]);
+  const [tdp, setTdp] = useState([20, 280]);
+
+  const handleRangeChange = (value, setter) => {
+    setter(value);
+  };
+
+  const toggleMerchantsDropdown = () => {
+    setIsMerchantsOpen(!isMerchantsOpen);
+  };
+
+  const handleMerchantChange = (merchant) => {
+    if (merchant === 'All') {
+      setSelectedMerchants(selectedMerchants.length === merchants.length - 1 ? [] : merchants);
+    } else {
+      if (selectedMerchants.includes(merchant)) {
+        setSelectedMerchants(selectedMerchants.filter(m => m !== merchant));
+      } else {
+        setSelectedMerchants([...selectedMerchants, merchant]);
+      }
+    }
+  };
+  const handlePriceChange = (e, index) => {
+    const newPriceRange = [...priceRange];
+    newPriceRange[index] = Number(e.target.value);
+    setPriceRange(newPriceRange);
+  };
+
+  return (
+    <div className={styles.filtersSection}>
+      <h2 className={styles.sectionTitle}>Port</h2>
+      <div className={styles.subSection}>
+        <h3 className={styles.subSectionTitle}>Last</h3>
+        <div className={styles.filterGroup}>
+          <label>Compatibility Filter</label>
+          <select>
+            <option value="">All</option>
+            <option value="gain1">Gain 1</option>
+            <option value="gain2">Gain 2</option>
+          </select>
+        </div>
+        <div className={styles.filterGroup}>
+        <label>CORE COUNT</label>
+        <div className={styles.rangeValues}>
+          {coreCount[0]} - {coreCount[1]}
+        </div>
+        <input
+          type="range"
+          min="1"
+          max="64"
+          value={coreCount[1]}
+          onChange={(e) => handleRangeChange([coreCount[0], parseInt(e.target.value)], setCoreCount)}
+          className={styles.rangeSlider}
+        />
+      </div>
+
+      {/* Thread Count Filter */}
+      <div className={styles.filterGroup}>
+        <label>THREAD COUNT</label>
+        <div className={styles.rangeValues}>
+          {threadCount[0]} - {threadCount[1]}
+        </div>
+        <input
+          type="range"
+          min="1"
+          max="128"
+          value={threadCount[1]}
+          onChange={(e) => handleRangeChange([threadCount[0], parseInt(e.target.value)], setThreadCount)}
+          className={styles.rangeSlider}
+        />
+      </div>
+
+      {/* Performance Core Clock Filter */}
+      <div className={styles.filterGroup}>
+        <label>PERFORMANCE CORE CLOCK</label>
+        <div className={styles.rangeValues}>
+          {coreClock[0]} GHz - {coreClock[1]} GHz
+        </div>
+        <input
+          type="range"
+          min="1.1"
+          max="4.7"
+          step="0.1"
+          value={coreClock[1]}
+          onChange={(e) => handleRangeChange([coreClock[0], parseFloat(e.target.value)], setCoreClock)}
+          className={styles.rangeSlider}
+        />
+      </div>
+
+      {/* L2 Cache Filter */}
+      <div className={styles.filterGroup}>
+        <label>L2 CACHE</label>
+        <div className={styles.rangeValues}>
+          {l2Cache[0]} MB - {l2Cache[1]} MB
+        </div>
+        <input
+          type="range"
+          min="0.25"
+          max="40"
+          step="0.25"
+          value={l2Cache[1]}
+          onChange={(e) => handleRangeChange([l2Cache[0], parseFloat(e.target.value)], setL2Cache)}
+          className={styles.rangeSlider}
+        />
+      </div>
+
+      {/* L3 Cache Filter */}
+      <div className={styles.filterGroup}>
+        <label>L3 CACHE</label>
+        <div className={styles.rangeValues}>
+          {l3Cache[0]} MB - {l3Cache[1]} MB
+        </div>
+        <input
+          type="range"
+          min="0"
+          max="256"
+          value={l3Cache[1]}
+          onChange={(e) => handleRangeChange([l3Cache[0], parseInt(e.target.value)], setL3Cache)}
+          className={styles.rangeSlider}
+        />
+      </div>
+
+      {/* TDP Filter */}
+      <div className={styles.filterGroup}>
+        <label>TDP</label>
+        <div className={styles.rangeValues}>
+          {tdp[0]}W - {tdp[1]}W
+        </div>
+        <input
+          type="range"
+          min="20"
+          max="280"
+          value={tdp[1]}
+          onChange={(e) => handleRangeChange([tdp[0], parseInt(e.target.value)], setTdp)}
+          className={styles.rangeSlider}
+        />
+      </div>
+        <div className={styles.subSection}>
+        <h3 className={styles.subSectionTitle}>Price</h3>
+        <div className={styles.filterGroup}>
+          <div className={styles.priceRangeContainer}>
+            <div className={styles.priceInputs}>
+              <input
+                type="number"
+                min="0"
+                max="2780"
+                value={priceRange[0]}
+                onChange={(e) => handlePriceChange(e, 0)}
+                className={styles.priceInput}
+              />
+              <span className={styles.priceSeparator}>-</span>
+              <input
+                type="number"
+                min="0"
+                max="2780"
+                value={priceRange[1]}
+                onChange={(e) => handlePriceChange(e, 1)}
+                className={styles.priceInput}
+              />
+            </div>
+            <div className={styles.priceRangeLabels}>
+              <span>$0</span>
+              <span>$2780</span>
+            </div>
+          </div>
+        </div>
+      </div>
+        <div className={styles.filterGroup}>
+          <label>Options Received</label>
+          <select>
+            <option value="">All</option>
+            <option value="option1">Option 1</option>
+            <option value="option2">Option 2</option>
+          </select>
+        </div>
+      </div>
+      
+      <div className={styles.subSection}>
+        <h3 className={styles.subSectionTitle}>Merchants/Pricing</h3>
+        <div className={styles.filterGroup}>
+          <div 
+            className={styles.merchantsHeader} 
+            onClick={toggleMerchantsDropdown}
+          >
+            <span className={styles.merchantsTitle}>Merchants</span>
+            <span className={styles.toggleIcon}>
+              {isMerchantsOpen ? '−' : '+'}
+            </span>
+          </div>
+          
+          {isMerchantsOpen && (
+            <div className={styles.merchantsDropdown}>
+              {merchants.map((merchant) => (
+                <div key={merchant} className={styles.merchantItem}>
+                  <input
+                    type="checkbox"
+                    id={`merchant-${merchant}`}
+                    checked={selectedMerchants.includes(merchant) || 
+                             (merchant === 'All' && selectedMerchants.length === merchants.length - 1)}
+                    onChange={() => handleMerchantChange(merchant)}
+                  />
+                  <label htmlFor={`merchant-${merchant}`}>{merchant}</label>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+        <div className={styles.filterGroup}>
+          <label>Financial Criteria</label>
+          <select>
+            <option value="">All</option>
+            <option value="criteria1">Criteria 1</option>
+            <option value="criteria2">Criteria 2</option>
+          </select>
+        </div>
+      </div>
+      
+      <div className={styles.subSection}>
+        <h3 className={styles.subSectionTitle}>Market/Interest</h3>
+        <div className={styles.filterGroup}>
+          <label>SECRET</label>
+          <select>
+            <option value="">All</option>
+            <option value="JASD">JASD Grants</option>
+          </select>
+        </div>
+        <div className={styles.filterGroup}>
+          <label>Joint Labs</label>
+          <select>
+            <option value="">All</option>
+            <option value="lab1">Lab 1</option>
+            <option value="lab2">Lab 2</option>
+          </select>
+        </div>
+      </div>
+      
+      <div className={styles.subSection}>
+        <h3 className={styles.subSectionTitle}>Notes</h3>
+        <div className={styles.filterGroup}>
+          <label>Interest (USD) Granted</label>
+          <select>
+            <option value="">All</option>
+            <option value="100">$100</option>
+            <option value="200">$200</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default FiltersSection;
+
+================================================================================
+// File: C:\Users\Administrator\Desktop\laptopia\src\components\FiltersSection.module.css
+================================================================================
+.filtersSection {
+    width: 30%;
+    margin-right: 2rem;
+    padding: 1rem;
+    background: white;
+    border-radius: 0.5rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+  
+  .sectionTitle {
+    font-size: 1.25rem;
+    margin-bottom: 1rem;
+    color: #3b82f6;
+  }
+  
+  .subSection {
+    margin-bottom: 1rem;
+  }
+  
+  .subSectionTitle {
+    font-size: 1rem;
+    margin-bottom: 0.5rem;
+    border-left: 4px solid #3b82f6;
+    padding-left: 0.5rem;
+  }
+  
+  .filterGroup {
+    margin-bottom: 1rem;
+  }
+  
+  .filterGroup label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: bold;
+    font-size: 0.9rem;
+  }
+  
+  .filterGroup select {
+    width: 100%;
+    padding: 0.5rem;
+    border: 1px solid #3b82f6;
+    border-radius: 0.375rem;
+    font-size: 0.9rem;
+  }
+  
+  /* Merchants Filter Styles */
+  .merchantsHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem;
+    background-color: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.375rem;
+    cursor: pointer;
+    margin-bottom: 0.5rem;
+  }
+  
+  .merchantsHeader:hover {
+    background-color: #f1f5f9;
+  }
+  
+  .merchantsTitle {
+    font-weight: bold;
+    font-size: 0.9rem;
+    color: #334155;
+  }
+  
+  .toggleIcon {
+    font-size: 1rem;
+    font-weight: bold;
+    color: #64748b;
+  }
+  
+  .merchantsDropdown {
+    max-height: 200px;
+    overflow-y: auto;
+    padding: 0.5rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.375rem;
+    background-color: white;
+  }
+  
+  .merchantItem {
+    padding: 0.3rem 0;
+    display: flex;
+    align-items: center;
+  }
+  
+  .merchantItem input {
+    margin-right: 0.5rem;
+  }
+  
+  .merchantItem label {
+    font-size: 0.85rem;
+    cursor: pointer;
+  }
+  
+  @media (max-width: 768px) {
+    .filtersSection {
+      width: 100%;
+      margin-right: 0;
+      margin-bottom: 2rem;
+    }
+  }
+
+  /* Existing styles... */
+
+/* Price Range Filter Styles */
+.priceRangeContainer {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .priceInputs {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  
+  .priceInput {
+    width: 100%;
+    padding: 0.5rem;
+    border: 1px solid #3b82f6;
+    border-radius: 0.375rem;
+    font-size: 0.9rem;
+    text-align: center;
+  }
+  
+  .priceSeparator {
+    color: #64748b;
+    font-weight: bold;
+  }
+  
+  .priceRangeLabels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.8rem;
+    color: #64748b;
+  }
+  
+  /* Rest of your existing styles... */
+
+  /* Add these to your existing FiltersSection.module.css */
+
+.filterGroup {
+    margin-bottom: 1.5rem;
+  }
+  
+  .filterGroup label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: bold;
+    font-size: 0.9rem;
+    color: #334155;
+  }
+  
+  .rangeValues {
+    margin-bottom: 0.5rem;
+    font-size: 0.85rem;
+    color: #64748b;
+  }
+  
+  .rangeSlider {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 6px;
+    border-radius: 3px;
+    background: #e2e8f0;
+    outline: none;
+    margin-top: 0.5rem;
+  }
+  
+  .rangeSlider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #3b82f6;
+    cursor: pointer;
+  }
+  
+  .rangeSlider::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #3b82f6;
+    cursor: pointer;
+    border: none;
+  }
+
+================================================================================
+// File: C:\Users\Administrator\Desktop\laptopia\src\components\Footer.jsx
+================================================================================
+import styles from './Footer.module.css';
+
+const Footer = () => {
+  return (
+    <footer className={styles.footer}>
+      <div className={styles.container}>
+        <p>© {new Date().getFullYear()} LAPTOPIA. All rights reserved.</p>
+      </div>
+    </footer>
+  );
+};
+
+export default Footer;
+
+================================================================================
+// File: C:\Users\Administrator\Desktop\laptopia\src\components\Footer.module.css
+================================================================================
+.footer {
+    background-color: #0f172a;
+    color: #e2e8f0;
+    padding: 2rem 0;
+    margin-top: auto;
+  }
+  
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 2rem;
+    text-align: center;
+  }
+
+================================================================================
+// File: C:\Users\Administrator\Desktop\laptopia\src\components\Header.jsx
+================================================================================
+import React from 'react';
+import { Link } from 'react-router-dom';
+import styles from './Header.module.css';
+import { FaHome, FaLaptop, FaDesktop, FaInfoCircle, FaUser } from 'react-icons/fa'; // Adding Icons
+
+const Header = () => {
+  return (
+    <header className={styles.header}>
+      <nav className={styles.nav}>
+        {/* Logo Section */}
+        <div className={styles.logo}>
+          <Link to="/" className={styles.logoLink}>
+            <span className={styles.logoText}>LAPTOPIA</span>
+          </Link>
+        </div>
+
+        {/* Navigation Links */}
+        <ul className={styles.navLinks}>
+          <li>
+            <Link to="/" className={styles.navLink}>
+              <FaHome className={styles.navIcon} />
+              Home
+            </Link>
+          </li>
+          <li>
+            <Link to="/recommendations" className={styles.navLink}>
+              <FaLaptop className={styles.navIcon} />
+              Laptop Recommendations
+            </Link>
+          </li>
+          <li>
+            <Link to="/custom-pc" className={styles.navLink}>
+              <FaDesktop className={styles.navIcon} />
+              Custom PC Builder
+            </Link>
+          </li>
+          <li>
+            <Link to="/about" className={styles.navLink}>
+              <FaInfoCircle className={styles.navIcon} />
+              About
+            </Link>
+          </li>
+        </ul>
+
+        {/* Profile Icon */}
+        <div className={styles.profile}>
+          <Link to="/profile" className={styles.profileLink}>
+            <FaUser className={styles.profileIcon} />
+          </Link>
+        </div>
+      </nav>
+    </header>
+  );
+};
+
+export default Header;
+
+
+================================================================================
+// File: C:\Users\Administrator\Desktop\laptopia\src\components\Header.module.css
+================================================================================
+/* Global Styles */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  margin: 0;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  overflow-x: hidden;
+}
+
+/* Header Styles */
+.header {
+  background-color: #1d2635;
+  position: sticky;
+  top: 0;
+  z-index: 1000;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding: 0 2rem;
+  height: 70px;
+  transition: box-shadow 0.3s ease;
+}
+
+/* Logo Section */
+.logo {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start; /* Ensures the logo stays left */
+}
+
+.logoLink {
+  color: #ffffff;
+  font-size: 1.75rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.logoText {
+  background: linear-gradient(to right, #3b82f6, #8b5cf6);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  transition: background 0.3s ease;
+}
+
+.logoLink:hover .logoText {
+  background: linear-gradient(to right, #2563eb, #6366f1);
+}
+
+/* Nav Links and Profile Icon Section */
+.navProfileWrapper {
+  display: flex;
+  justify-content: flex-end; /* Aligns the links and profile icon to the right */
+  gap: 2rem;
+  align-items: center;
+  width: auto; /* Ensure this container grows only when needed */
+}
+
+.navLinks {
+  display: flex;
+  list-style: none;
+  gap: 2rem;
+  align-items: center;
+}
+
+.navLink {
+  color: #e2e8f0;
+  text-decoration: none;
+  font-weight: 500;
+  transition: color 0.3s ease, transform 0.3s ease;
+  padding: 0.5rem 1rem;
+  font-size: 1rem;
+  position: relative;
+}
+
+.navLink:hover {
+  color: #ffffff;
+  transform: translateY(-2px);
+}
+
+.navLink::before {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background-color: #3b82f6;
+  transform: scaleX(0);
+  transition: transform 0.3s ease;
+}
+
+.navLink:hover::before {
+  transform: scaleX(1);
+}
+
+/* Profile Icon */
+.profileLink {
+  color: #ffffff;
+  font-size: 1.5rem;
+  text-decoration: none;
+}
+
+.profileIcon {
+  font-size: 2rem;
+  color: #3b82f6;
+  cursor: pointer;
+}
+
+/* Hamburger Menu */
+.hamburgerMenu {
+  display: none;
+}
+
+.hamburgerCheckbox:checked + label + .mobileNavLinks {
+  display: block;
+}
+
+.hamburgerIcon {
+  display: block;
+  font-size: 2rem;
+  color: white;
+  cursor: pointer;
+  padding: 10px;
+}
+
+.mobileNavLinks {
+  display: none;
+  position: absolute;
+  top: 70px;
+  right: 0;
+  background-color: #1d2635;
+  padding: 1rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  list-style: none;
+  width: 100%;
+}
+
+.mobileNavLinks li {
+  margin: 1rem 0;
+}
+
+.mobileNavLinks .navLink {
+  padding: 1rem;
+  text-align: center;
+  font-size: 1.2rem;
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+  .header {
+    padding: 0.5rem 1rem;
+    flex-direction: column;
+  }
+
+  .navProfileWrapper {
+    gap: 1rem;
+  }
+
+  .navLinks {
+    flex-direction: column;
+    gap: 1rem;
+    margin-top: 1rem;
+  }
+
+  .navLink {
+    width: 100%;
+    text-align: left;
+    padding: 0.75rem 1.5rem;
+  }
+
+  /* Show hamburger on small screens */
+  .hamburgerMenu {
+    display: block;
+  }
+}
+
+
+================================================================================
+// File: C:\Users\Administrator\Desktop\laptopia\src\components\Home.jsx
+================================================================================
+// src/components/Home.jsx
+
+import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import LaptopRecommendation from './LaptopRecommendation';
+import CustomPcBuilder from './CustomPcBuilder';
+import LatestModels from './LatestModels';
+import styles from './Home.module.css';
+import laptopData from './latestLaptops.json'; // Import latestLaptops.json
+import RecommendedLaptops from './RecommendedLaptops';
+function Home() {
+  const [laptops, setLaptops] = useState([]);
+  const [selectedCompany, setSelectedCompany] = useState(null);
+
+  useEffect(() => {
+    // Set the laptops from the imported data
+    setLaptops(laptopData);
+  }, []);
+
+  const uniqueCompanies = Array.from(new Set(laptops.map(laptop => laptop.Company)));
+
+  const handleCompanyClick = (company) => {
+    setSelectedCompany(current => current === company ? null : company);
+  };
+
+  const filteredLaptops = selectedCompany
+    ? laptops.filter(laptop => laptop.Company === selectedCompany)
+    : laptops;
+
+  return (
+    <div className={styles.homeContainer}>
+      <div className={styles.hero}>
+        <h1 className={styles.heroTitle}>Welcome to LAPTOPIA</h1>
+        <p className={styles.heroSubtitle}>
+          Your ultimate destination for laptop recommendations and PC building
+        </p>
+      </div>
+
+      <div className={styles.featuredSections}>
+        <div className={styles.laptopRecommendation}>
+          <LaptopRecommendation />
+        </div>
+        <div className={styles.customPcBuilder}>
+          <CustomPcBuilder />
+        </div>
+      </div>
+
+      <div className={styles.latestModelsSection}>
+        <h2 className={styles.sectionTitle}>Explore Latest Models</h2>
+        <div className={styles.companyFilters}>
+          <button
+            className={`${styles.filterButton} ${selectedCompany === null ? styles.activeFilter : ''}`}
+            onClick={() => handleCompanyClick(null)}
+          >
+            ALL
+          </button>
+          {uniqueCompanies.map(company => (
+            <button
+              key={company}
+              className={`${styles.filterButton} ${selectedCompany === company ? styles.activeFilter : ''}`}
+              onClick={() => handleCompanyClick(company)}
+            >
+              {company}
+            </button>
+          ))}
+        </div>
+        <div className={styles.laptopGrid}>
+          {filteredLaptops.map((laptop) => (
+            <div key={laptop.indx} className={styles.laptopCard}>
+              <img src={`path_to_images/${laptop.Company}_${laptop.indx}.jpg`} alt={laptop.Company} className={styles.laptopImage} />
+              <h3 className={styles.laptopName}>{laptop.Company} {laptop.TypeName}</h3>
+              <p className={styles.laptopSpecs}>CPU: {laptop.cpu_name.trim()} | RAM: {laptop.Ram}GB | Storage: {laptop.Memory}</p>
+              <Link
+                to="/laptop-details"
+                state={{ laptop }}
+                className={styles.readMoreButton}
+              >
+                Read More
+              </Link>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default Home;
+
+================================================================================
+// File: C:\Users\Administrator\Desktop\laptopia\src\components\Home.module.css
+================================================================================
+/* src/components/Home.module.css */
+
+/* General styles */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background-color: #f8fafc;
+  color: #1e3a8a;
+}
+
+/* Hero Section */
+.hero {
+  position: relative;
+  text-align: center;
+  margin-bottom: 1rem;
+  padding: 1rem 2rem 0.5rem;
+  background: linear-gradient(135deg, #0f172a, #1e3a8a);
+  border-radius: 1rem;
+  color: white;
+  overflow: hidden;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+.hero::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(circle at 75% 30%, rgba(59, 130, 246, 0.2) 0%, transparent 50%);
+  z-index: 1;
+}
+
+.hero::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgdmlld0JveD0iMCAwIDYwIDYwIj48cmVjdCB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIGZpbGw9Im5vbmUiLz48ZyBmaWxsPSJ1cmwoI2EpIiBmaWxsLW9wYWNpdHk9IjAuMSI+PHBhdGggZD0iTTAgMGg2MHY2MEgweiIvPjwvZz48ZGVmcz48cmFkaWFsR3JhZGllbnQgaWQ9ImEiIGN4PSIwIiBjeT0iMCIgcj0iMSIgZ3JhZGllbnRVbml0cz0idXNlclNwYWNlT25Vc2UiIGdyYWRpZW50VHJhbnNmb3JtPSJzY2FsZSg2MCkiPjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iIzAwMCIvPjxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iI2ZmZiIvPjwvcmFkaWFsR3JhZGllbnQ+PC9kZWZzPjwvc3ZnPg==');
+  opacity: 0.1;
+  z-index: 1;
+}
+
+.heroContent {
+  position: relative;
+  z-index: 2;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.heroTitle {
+  font-size: 2.5rem;
+  margin-bottom: 0.5rem;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+}
+
+.heroSubtitle {
+  font-size: 1rem;
+  opacity: 0.9;
+  max-width: 600px;
+  margin: 0 auto;
+  line-height: 1.6;
+}
+
+/* Featured Sections */
+.featuredSections {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2rem;
+  padding: 2rem;
+}
+
+.laptopRecommendation,
+.customPcBuilder {
+  flex: 1 1 calc(50% - 1rem);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  background: white;
+  border-radius: 0.5rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  padding: 1rem;
+}
+
+@media (max-width: 768px) {
+  .featuredSections {
+    flex-direction: column;
+  }
+
+  .laptopRecommendation,
+  .customPcBuilder {
+    flex: 1 1 100%;
+  }
+}
+
+/* Latest Models Section */
+.latestModelsSection {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+  text-align: center;
+}
+
+.latestModelsSection h2 {
+  font-size: 2rem;
+  margin-bottom: 1rem;
+}
+
+.laptopGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 2rem;
+}
+
+.laptopCard {
+  background: white;
+  border-radius: 0.5rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  text-align: center;
+  transition: transform 0.3s ease;
+}
+
+.laptopCard:hover {
+  transform: translateY(-5px);
+}
+
+.laptopImage {
+  width: 100%;
+  height: auto;
+  border-radius: 0.5rem 0.5rem 0 0;
+}
+
+.laptopName {
+  font-size: 1.25rem;
+  margin: 1rem 0 0.5rem;
+  color: #1e3a8a;
+}
+
+.laptopSpecs {
+  font-size: 1rem;
+  margin-bottom: 1rem;
+  color: #4b5563;
+}
+
+.readMoreButton {
+  display: inline-block;
+  padding: 0.5rem 1rem;
+  background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+.readMoreButton:hover {
+  background: linear-gradient(90deg, #2563eb, #7c3aed);
+}
+
+/* Company Filters */
+.companyFilters {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  padding: 0 1rem;
+}
+
+.filterButton {
+  padding: 0.5rem 1rem;
+  background-color: #f8fafc;
+  border: 1px solid #3b82f6;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: background-color 0.3s ease, border-color 0.3s ease;
+  flex: 0 1 auto;
+  text-align: center;
+}
+
+.filterButton:hover,
+.filterButton.activeFilter {
+  background-color: #3b82f6;
+  border-color: #2563eb;
+  color: white;
+}
+
+================================================================================
+// File: C:\Users\Administrator\Desktop\laptopia\src\components\LaptopCard.jsx
+================================================================================
+// src/components/LaptopCard.jsx
+import React from 'react';
+import PropTypes from 'prop-types';
+import styles from './LaptopCard.module.css';
+import { FaExternalLinkAlt } from 'react-icons/fa';
+
+const LaptopCard = ({ data, onSave, saving }) => {
+  const {
+    name,
+    specs,
+    price,
+    image,
+    storeLink,
+    reason,
+  } = data;
+
+  return (
+    <div className={styles.laptopCard} tabIndex={0} aria-label={`Laptop: ${name}`}>
+      <div className={styles.imageWrapper}>
+        <img
+          src={image}
+          alt={name}
+          loading="lazy"
+          className={styles.laptopImage}
+        />
+      </div>
+      <div className={styles.laptopInfo}>
+        <h2 className={styles.laptopName}>{name}</h2>
+        <div className={styles.laptopSpecs}>{specs}</div>
+        <div className={styles.laptopPrice}>{price}</div>
+        {reason && <div className={styles.laptopReason}>💡 {reason}</div>}
+
+        <div className={styles.laptopActions}>
+          <a
+            href={storeLink}
+            className={styles.storeLink}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={`Buy ${name} on store`}
+          >
+            <FaExternalLinkAlt className={styles.externalLinkIcon} />
+            <span>See in Store</span>
+          </a>
+          {onSave && (
+            <button
+              className={styles.saveButton}
+              onClick={onSave}
+              disabled={saving}
+              aria-label={`Save ${name}`}
+            >
+              {saving ? (
+                <span className={styles.spinner}></span>
+              ) : (
+                <>
+                  💾 Save
+                </>
+              )}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+LaptopCard.propTypes = {
+  data: PropTypes.shape({
+    name: PropTypes.string.isRequired,
+    specs: PropTypes.string.isRequired,
+    price: PropTypes.string.isRequired,
+    image: PropTypes.string.isRequired,
+    storeLink: PropTypes.string,
+    reason: PropTypes.string,
+  }).isRequired,
+  onSave: PropTypes.func,
+  saving: PropTypes.bool,
+};
+
+LaptopCard.defaultProps = {
+  onSave: null,
+  saving: false,
+};
+
+export default LaptopCard;
+
+
+================================================================================
+// File: C:\Users\Administrator\Desktop\laptopia\src\components\LaptopCard.module.css
+================================================================================
+.laptopCard {
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border-radius: 0.75rem;
+  box-shadow: 0 4px 16px rgba(30,40,60,0.09);
+  padding: 1.5rem;
+  transition: box-shadow 0.2s, transform 0.2s;
+  min-height: 370px;
+  outline: none;
+}
+.laptopCard:focus, .laptopCard:hover {
+  box-shadow: 0 8px 32px rgba(36,99,235,0.16);
+  transform: translateY(-3px) scale(1.015);
+}
+.imageWrapper {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+.laptopImage {
+  width: 95%;
+  height: 160px;
+  object-fit: cover;
+  border-radius: 0.6rem;
+  background: #eef1f6;
+}
+.laptopInfo {
+  margin-top: 1.1rem;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.laptopName {
+  font-size: 1.3rem;
+  font-weight: 600;
+  color: #283046;
+  margin-bottom: 0.4rem;
+}
+.laptopSpecs {
+  font-size: 0.98rem;
+  color: #546270;
+  margin-bottom: 0.3rem;
+}
+.laptopPrice {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #2563eb;
+  margin: 0.4rem 0;
+}
+.laptopReason {
+  background: #f1f5ff;
+  color: #3641b7;
+  padding: 0.3rem 0.7rem;
+  border-radius: 0.5rem;
+  font-size: 0.95rem;
+  margin-bottom: 0.6rem;
+}
+.laptopActions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  margin-top: auto;
+}
+.storeLink {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: #174fc7;
+  text-decoration: none;
+  font-size: 1rem;
+  background: none;
+  padding: 0.45rem 0.9rem;
+  border-radius: 0.5rem;
+  transition: background 0.15s;
+}
+.storeLink:hover {
+  background: #f0f4fa;
+  color: #2563eb;
+}
+.saveButton {
+  background: #3b82f6;
+  color: #fff;
+  border: none;
+  border-radius: 0.5rem;
+  font-size: 1rem;
+  font-weight: 500;
+  padding: 0.55rem 1.1rem;
+  cursor: pointer;
+  min-width: 82px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s, transform 0.2s;
+  position: relative;
+}
+.saveButton:disabled {
+  background: #aacaf5;
+  cursor: not-allowed;
+}
+.saveButton:hover:not(:disabled) {
+  background: #2563eb;
+  transform: scale(1.04);
+}
+.spinner {
+  width: 1.2em;
+  height: 1.2em;
+  border: 3px solid #fff;
+  border-top: 3px solid #2563eb;
+  border-radius: 50%;
+  animation: spin 0.75s linear infinite;
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+.externalLinkIcon {
+  font-size: 1em;
+  margin-right: 0.2em;
+}
+
+
+================================================================================
+// File: C:\Users\Administrator\Desktop\laptopia\src\components\LaptopDetails.jsx
+================================================================================
+// src/components/LaptopDetails.jsx
+
+import React from 'react';
+import { useLocation } from 'react-router-dom';
+import styles from './LaptopDetails.module.css';
+
+const LaptopDetails = () => {
+  const location = useLocation();
+  const { laptop } = location.state || {};
+
+  if (!laptop) {
+    return <div className={styles.pageContainer}>Laptop not found</div>;
+  }
+
+  return (
+    <div className={styles.pageContainer}>
+      <h1>{laptop.name}</h1>
+      <p>{laptop.details.description}</p>
+      <div className={styles.imageContainer}>
+        {laptop.details.images.map((image, index) => (
+          <img key={index} src={image} alt={laptop.name} className={styles.modalImage} />
+        ))}
+      </div>
+      <a href={laptop.details.buyLink} className={styles.buyButton} target="_blank" rel="noopener noreferrer">
+        Buy Now
+      </a>
+    </div>
+  );
+};
+
+export default LaptopDetails;
+
+================================================================================
+// File: C:\Users\Administrator\Desktop\laptopia\src\components\LaptopDetails.module.css
+================================================================================
+/* src/components/LaptopDetails.module.css */
+
+.pageContainer {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+    text-align: center;
+  }
+  
+  .imageContainer {
+    display: flex;
+    justify-content: center;
+    margin: 2rem 0;
+  }
+  
+  .modalImage {
+    width: 100%;
+    max-width: 600px;
+    height: auto;
+    border-radius: 0.5rem;
+    object-fit: cover;
+  }
+  
+  .buyButton {
+    display: inline-block;
+    padding: 0.5rem 1rem;
+    background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+    color: white;
+    border: none;
+    border-radius: 0.5rem;
+    cursor: pointer;
+    transition: background 0.3s ease;
+  }
+  
+  .buyButton:hover {
+    background: linear-gradient(90deg, #2563eb, #7c3aed);
+  }
+
+================================================================================
+// File: C:\Users\Administrator\Desktop\laptopia\src\components\LaptopRecommendation.jsx
+================================================================================
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import styles from './LaptopRecommendation.module.css';
+
+const LaptopRecommendation = () => {
+  const [userInput, setUserInput] = useState('');
+  const [budgetRange, setBudgetRange] = useState('');
+  const [usagePurpose, setUsagePurpose] = useState('');
+  const [otherUsage, setOtherUsage] = useState('');
+  const [error, setError] = useState('');
+  const navigate = useNavigate();
+
+  const handleInputChange = (e) => {
+    setUserInput(e.target.value);
+    if (error) {
+      setError(''); // Clear error if user starts typing
+    }
+  };
+
+  const handleBudgetChange = (e) => {
+    setBudgetRange(e.target.value);
+  };
+
+  const handleUsagePurposeChange = (e) => {
+    setUsagePurpose(e.target.value);
+  };
+
+  const handleOtherUsageChange = (e) => {
+    setOtherUsage(e.target.value);
+  };
+
+  const handleTextRecommendation = () => {
+    if (!userInput.trim()) {
+      setError('Please enter a description of what you need in a laptop.');
+      return;
+    }
+    navigate('/recommended-laptops', {
+      state: {
+        userPreferences: {
+          inputText: userInput,
+        },
+      },
+    });
+  };
+
+  const handleFormRecommendation = () => {
+    if (!budgetRange || !usagePurpose) {
+      setError('Please fill out the basic preferences.');
+      return;
+    }
+    navigate('/recommended-laptops', {
+      state: {
+        userPreferences: {
+          budgetRange,
+          usagePurpose: usagePurpose === 'Other' ? otherUsage : usagePurpose,
+        },
+      },
+    });
+  };
+
+  return (
+    <div className={styles.recommendationSection}>
+      <div className={styles.recommendationInput}>
+        <h2 className={styles.sectionTitle}>Find Your Perfect Laptop</h2>
+        <p className={styles.sectionDescription}>
+          Get AI-powered recommendations based on your needs and budget.
+        </p>
+        <textarea
+          placeholder="Describe what you need in a laptop..."
+          value={userInput}
+          onChange={handleInputChange}
+          className={styles.inputField}
+        />
+        {error && <p className={styles.error}>{error}</p>}
+        <button className={styles.ctaButton} onClick={handleTextRecommendation}>
+          Start Recommendation
+        </button>
+      </div>
+      <div className={styles.orSeparator}>
+        <p>OR</p>
+      </div>
+      <div className={styles.basicForm}>
+        <h3 className={styles.formTitle}>Basic Preferences</h3>
+        <form className={styles.form}>
+          <div className={styles.formGroup}>
+            <label>Budget Range *</label>
+            <select
+              className={styles.formControl}
+              required
+              value={budgetRange}
+              onChange={handleBudgetChange}
+            >
+              <option value="">Select Budget Range</option>
+              <option value="$0-$500">$0-$500</option>
+              <option value="$501-$1000">$501-$1000</option>
+              <option value="$1001-$1500">$1001-$1500</option>
+              <option value="$1501-$2000">$1501-$2000</option>
+              <option value="$2001 and above">$2001 and above</option>
+            </select>
+          </div>
+          <div className={styles.formGroup}>
+            <label>Usage Purpose *</label>
+            <div>
+              <label>
+                <input
+                  type="radio"
+                  name="usagePurpose"
+                  value="Gaming"
+                  required
+                  onChange={handleUsagePurposeChange}
+                />
+                Gaming
+              </label>
+              <label>
+                <input
+                  type="radio"
+                  name="usagePurpose"
+                  value="Work"
+                  required
+                  onChange={handleUsagePurposeChange}
+                />
+                Work
+              </label>
+              <label>
+                <input
+                  type="radio"
+                  name="usagePurpose"
+                  value="School"
+                  required
+                  onChange={handleUsagePurposeChange}
+                />
+                School
+              </label>
+              <label>
+                <input
+                  type="radio"
+                  name="usagePurpose"
+                  value="Multimedia"
+                  required
+                  onChange={handleUsagePurposeChange}
+                />
+                Multimedia
+              </label>
+              <label>
+                <input
+                  type="radio"
+                  name="usagePurpose"
+                  value="General Use"
+                  required
+                  onChange={handleUsagePurposeChange}
+                />
+                General Use
+              </label>
+              <label>
+                <input
+                  type="radio"
+                  name="usagePurpose"
+                  value="Other"
+                  required
+                  onChange={handleUsagePurposeChange}
+                />
+                Other
+              </label>
+              {usagePurpose === 'Other' && (
+                <input
+                  type="text"
+                  placeholder="Specify other usage"
+                  value={otherUsage}
+                  onChange={handleOtherUsageChange}
+                  className={styles.otherUsageInput}
+                />
+              )}
+            </div>
+          </div>
+          <button type="button" className={styles.ctaButton} onClick={handleFormRecommendation}>
+            Get Recommendations
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+export default LaptopRecommendation;
+
+================================================================================
+// File: C:\Users\Administrator\Desktop\laptopia\src\components\LaptopRecommendation.module.css
+================================================================================
+/* Recommendation Section Styles */
+.recommendationSection {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    margin-bottom: 3rem;
+    padding: 2rem;
+    background: #f8fafc;
+    border-radius: 1rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  }
+  
+  .recommendationInput {
+    flex: 1;
+    margin-right: 2rem;
+  }
+  
+  .recommendationInput h2 {
+    font-size: 2rem;
+    margin-bottom: 1rem;
+    color: #1e3a8a;
+  }
+  
+  .recommendationInput p {
+    font-size: 1.1rem;
+    margin-bottom: 2rem;
+    color: #4b5563;
+  }
+  
+  .inputField {
+    width: 100%;
+    padding: 1rem;
+    margin-bottom: 2rem;
+    border: 1px solid #3b82f6;
+    border-radius: 0.5rem;
+    font-size: 1rem;
+    resize: vertical; /* Allow vertical resizing */
+    min-height: 100px; /* Minimum height for the textarea */
+  }
+  
+  .ctaButton {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.75rem 2rem;
+    background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+    color: white;
+    text-decoration: none;
+    border-radius: 9999px;
+    font-weight: 600;
+    font-size: 1rem;
+    border: none;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+    z-index: 1;
+  }
+  
+  .ctaButton::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(90deg, #2563eb, #7c3aed);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    z-index: -1;
+  }
+  
+  .ctaButton:hover::before {
+    opacity: 1;
+  }
+  
+  .ctaButton span {
+    position: relative;
+    z-index: 2;
+  }
+  
+  .recommendationVisual {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  
+  .visualContent img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  }
+  
+  @media (max-width: 768px) {
+    .recommendationSection {
+      flex-direction: column;
+    }
+  
+    .recommendationInput {
+      margin-right: 0;
+      margin-bottom: 2rem;
+    }
+  
+    .recommendationVisual {
+      margin-top: 2rem;
+    }
+  }
+
+  /* ... (previous styles) ... */
+
+.recommendationResults {
+    background: #f8fafc;
+    padding: 1rem;
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    margin-top: 2rem;
+  }
+  
+  .recommendationCards {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+  
+  .recommendationCard {
+    flex: 1 1 calc(33.333% - 1rem);
+    background: white;
+    border-radius: 0.5rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    padding: 1rem;
+    text-align: center;
+  }
+  
+  .cardImage {
+    max-width: 100%;
+    height: auto;
+    border-radius: 0.5rem;
+    margin-bottom: 1rem;
+  }
+  
+  .cardTitle {
+    font-size: 1.25rem;
+    margin-bottom: 0.5rem;
+  }
+  
+  .cardBrand {
+    font-size: 1rem;
+    color: #4b5563;
+    margin-bottom: 0.5rem;
+  }
+  
+  .cardPrice {
+    font-size: 1.1rem;
+    color: #1e3a8a;
+    margin-bottom: 0.5rem;
+  }
+  
+  .cardSpecs {
+    font-size: 1rem;
+    color: #4b5563;
+  }
+  
+  @media (max-width: 768px) {
+    .recommendationCards {
+      flex-direction: column;
+    }
+  
+    .recommendationCard {
+      flex: 1 1 100%;
+    }
+  }
+
+
+  /* ... (previous styles) ... */
+
+.modalOverlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+  }
+  
+  .modal {
+    background: white;
+    padding: 2rem;
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    width: 80%;
+    max-width: 600px;
+    text-align: center;
+  }
+  
+  .closeButton {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+  }
+  
+  .modalImage {
+    max-width: 100%;
+    height: auto;
+    margin-bottom: 1rem;
+  }
+  
+  /* ... (previous styles) ... */
+
+  /* ... (previous styles) ... */
+
+.modalOverlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    transition: opacity 0.3s ease;
+  }
+  
+  .modal {
+    background: white;
+    padding: 2rem;
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    width: 80%;
+    max-width: 600px;
+    text-align: center;
+    animation: modalFadeIn 0.3s ease;
+  }
+  
+  .closeButton {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+  }
+  
+  .modalImage {
+    max-width: 100%;
+    height: auto;
+    margin-bottom: 1rem;
+  }
+  
+  @keyframes modalFadeIn {
+    from {
+      opacity: 0;
+      transform: scale(0.8);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+  
+  /* ... (previous styles) ... */
+
+  /* ... (previous styles) ... */
+
+.modalOverlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    transition: opacity 0.3s ease;
+  }
+  
+  .modal {
+    background: white;
+    padding: 2rem;
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    width: 80%;
+    max-width: 600px;
+    text-align: center;
+    animation: modalFadeIn 0.3s ease;
+    position: relative;
+  }
+  
+  .closeButton, .cancelButton {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 50%;
+    background-color: #f8fafc;
+    border: 1px solid #3b82f6;
+    color: #3b82f6;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+  
+  .closeButton:hover, .cancelButton:hover {
+    background-color: #3b82f6;
+    color: white;
+  }
+  
+  .modalImage {
+    max-width: 100%;
+    height: auto;
+    margin-bottom: 1rem;
+  }
+  
+  @keyframes modalFadeIn {
+    from {
+      opacity: 0;
+      transform: scale(0.8);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+  
+  /* ... (previous styles) ... */
+
+  /* ... (previous styles) ... */
+
+.modalOverlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    transition: opacity 0.3s ease;
+  }
+  
+  .modal {
+    background: white;
+    padding: 2rem;
+    border-radius: 0.5rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    width: 80%;
+    max-width: 600px;
+    text-align: center;
+    animation: modalFadeIn 0.3s ease;
+    position: relative;
+  }
+  
+  .closeButton {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 50%;
+    background-color: #f8fafc;
+    border: 1px solid #3b82f6;
+    color: #3b82f6;
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+  
+  .closeButton:hover {
+    background-color: #3b82f6;
+    color: white;
+  }
+  
+  .modalImage {
+    max-width: 100%;
+    height: auto;
+    margin-bottom: 1rem;
+  }
+  
+  @keyframes modalFadeIn {
+    from {
+      opacity: 0;
+      transform: scale(0.8);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+  
+  /* ... (previous styles) ... */
+
+  /* Existing styles */
+
+.orSeparator {
+  text-align: center;
+  margin: 2rem 0;
+}
+
+.orSeparator p {
+  font-size: 1.25rem;
+  color: #4b5563;
+}
+
+.recommendationForm {
+  margin-top: 2rem;
+}
+
+.formTitle {
+  font-size: 1.5rem;
+  margin-bottom: 1rem;
+  color: #3b82f6;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+}
+
+.formGroup {
+  margin-bottom: 1rem;
+}
+
+.formGroup label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: #4b5563;
+}
+
+.formControl {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #3b82f6;
+  border-radius: 0.375rem;
+  font-size: 1rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .orSeparator p {
+    font-size: 1rem;
+  }
+
+  .formTitle {
+    font-size: 1.25rem;
+  }
+
+  .formControl {
+    font-size: 0.9rem;
+  }
+}
+
+/* Existing styles */
+
+.recommendationSection {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 3rem;
+  padding: 2rem;
+  background: #f8fafc;
+  border-radius: 1rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.recommendationInput {
+  margin-bottom: 2rem;
+  width: 100%;
+  max-width: 600px;
+}
+
+.orSeparator {
+  text-align: center;
+  margin: 2rem 0;
+}
+
+.orSeparator p {
+  font-size: 1.25rem;
+  color: #4b5563;
+}
+
+.recommendationForm {
+  width: 100%;
+  max-width: 600px;
+}
+
+.formTitle {
+  font-size: 1.5rem;
+  margin-bottom: 1rem;
+  color: #3b82f6;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+}
+
+.formGroup {
+  margin-bottom: 1rem;
+}
+
+.formGroup label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: #4b5563;
+}
+
+.formControl {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #3b82f6;
+  border-radius: 0.375rem;
+  font-size: 1rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .recommendationSection {
+    padding: 1rem;
+  }
+
+  .orSeparator p {
+    font-size: 1rem;
+  }
+
+  .formTitle {
+    font-size: 1.25rem;
+  }
+
+  .formControl {
+    font-size: 0.9rem;
+  }
+}
+
+/* Existing styles */
+
+.recommendationSection {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 3rem;
+  padding: 2rem;
+  background: #f8fafc;
+  border-radius: 1rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.recommendationInput {
+  margin-bottom: 2rem;
+  width: 100%;
+  max-width: 600px;
+}
+
+.orSeparator {
+  text-align: center;
+  margin: 2rem 0;
+}
+
+.orSeparator p {
+  font-size: 1.25rem;
+  color: #4b5563;
+}
+
+.recommendationForm {
+  width: 100%;
+  max-width: 600px;
+}
+
+.formTitle {
+  font-size: 1.5rem;
+  margin-bottom: 1rem;
+  color: #3b82f6;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+}
+
+.formGroup {
+  margin-bottom: 1rem;
+}
+
+.formGroup label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: #4b5563;
+}
+
+.formControl {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #3b82f6;
+  border-radius: 0.375rem;
+  font-size: 1rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .recommendationSection {
+    padding: 1rem;
+  }
+
+  .orSeparator p {
+    font-size: 1rem;
+  }
+
+  .formTitle {
+    font-size: 1.25rem;
+  }
+
+  .formControl {
+    font-size: 0.9rem;
+  }
+}
+
+
+/* Existing styles */
+
+.recommendationSection {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 3rem;
+  padding: 2rem;
+  background: #f8fafc;
+  border-radius: 1rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.recommendationInput {
+  margin-bottom: 2rem;
+  width: 100%;
+  max-width: 600px;
+}
+
+.orSeparator {
+  text-align: center;
+  margin: 2rem 0;
+}
+
+.orSeparator p {
+  font-size: 1.25rem;
+  color: #4b5563;
+}
+
+.recommendationForm {
+  width: 100%;
+  max-width: 600px;
+}
+
+.formTitle {
+  font-size: 1.5rem;
+  margin-bottom: 1rem;
+  color: #3b82f6;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+}
+
+.formRow {
+  display: flex;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.formColumn {
+  flex: 1;
+  margin-right: 1rem;
+}
+
+.formGroup {
+  margin-bottom: 1rem;
+}
+
+.formGroup label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: #4b5563;
+  font-size: 0.9rem;
+}
+
+.formControl {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #3b82f6;
+  border-radius: 0.375rem;
+  font-size: 0.9rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .formRow {
+    flex-direction: column;
+  }
+
+  .formColumn {
+    margin-right: 0;
+    margin-bottom: 1rem;
+  }
+}
+
+/* Existing styles */
+
+.recommendationSection {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 3rem;
+  padding: 2rem;
+  background: #f8fafc;
+  border-radius: 1rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.recommendationInput {
+  margin-bottom: 2rem;
+  width: 100%;
+  max-width: 600px;
+}
+
+.orSeparator {
+  text-align: center;
+  margin: 2rem 0;
+}
+
+.orSeparator p {
+  font-size: 1.25rem;
+  color: #4b5563;
+}
+
+.recommendationForm {
+  width: 100%;
+  max-width: 600px;
+}
+
+.formTitle {
+  font-size: 1.5rem;
+  margin-bottom: 1rem;
+  color: #3b82f6;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+}
+
+.formRow {
+  display: flex;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.formColumn {
+  flex: 1;
+  margin-right: 1rem;
+}
+
+.formGroup {
+  margin-bottom: 1rem;
+}
+
+.formGroup label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: #4b5563;
+  font-size: 0.9rem;
+}
+
+.formControl {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #3b82f6;
+  border-radius: 0.375rem;
+  font-size: 0.9rem;
+}
+
+/* Required fields indicator */
+.formGroup label:after {
+  content: '*';
+  color: red;
+  margin-left: 0.25rem;
+}
+
+/* Optional fields indicator */
+.formGroup.optional label:after {
+  content: '(Optional)';
+  color: gray;
+  margin-left: 0.25rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .formRow {
+    flex-direction: column;
+  }
+
+  .formColumn {
+    margin-right: 0;
+    margin-bottom: 1rem;
+  }
+}
+
+
+
+.basicForm .formGroup input[type="text"] {
+  margin-top: 0.5rem;
+}
+
+.basicForm .formGroup input[type="text"]:focus {
+  outline: none;
+  border-color: #007bff;
+}
+
+.basicForm .formGroup input[type="text"]:hover {
+  border-color: #0056b3;
+}
+
+
+
+
+
+================================================================================
+// File: C:\Users\Administrator\Desktop\laptopia\src\components\LaptopRecommendations.jsx
+================================================================================
+import React from 'react';
+import { useNavigate } from 'react-router-dom';
+import styles from './LaptopRecommendations.module.css';
+
+const LaptopRecommendations = () => {
+  const navigate = useNavigate();
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    const form = new FormData(e.target);
+    const formData = {};
+
+    form.forEach((value, key) => {
+      if (formData[key]) {
+        if (Array.isArray(formData[key])) {
+          formData[key].push(value);
+        } else {
+          formData[key] = [formData[key], value];
+        }
+      } else {
+        formData[key] = value;
+      }
+    });
+
+    // Flag the form as advanced
+    formData.advanced = true;
+
+    // Navigate to recommended laptops page with preferences
+    navigate('/recommended-laptops', { state: { userPreferences: formData } });
+  };
+
+  return (
+    <div className={styles.recommendationSection}>
+      <h2 className={styles.sectionTitle}>Advanced Laptop Recommendation</h2>
+     <form className={styles.form} onSubmit={handleSubmit}>
+        <div className={styles.formRow}>
+          <div className={styles.formColumn}>
+            <div className={styles.formGroup}>
+              <label>Budget Range *</label>
+              <select className={styles.formControl} required>
+                <option value="">Select Budget Range</option>
+                <option value="$0-$500">$0-$500</option>
+                <option value="$501-$1000">$501-$1000</option>
+                <option value="$1001-$1500">$1001-$1500</option>
+                <option value="$1501-$2000">$1501-$2000</option>
+                <option value="$2001 and above">$2001 and above</option>
+              </select>
+            </div>
+            <div className={styles.formGroup}>
+              <label>Usage Purpose *</label>
+              <div>
+                <label>
+                  <input type="radio" name="usagePurpose" value="Gaming" required />
+                  Gaming
+                </label>
+                <label>
+                  <input type="radio" name="usagePurpose" value="Work" required />
+                  Work
+                </label>
+                <label>
+                  <input type="radio" name="usagePurpose" value="School" required />
+                  School
+                </label>
+                <label>
+                  <input type="radio" name="usagePurpose" value="Multimedia" required />
+                  Multimedia
+                </label>
+                <label>
+                  <input type="radio" name="usagePurpose" value="General Use" required />
+                  General Use
+                </label>
+              </div>
+            </div>
+          </div>
+          <div className={styles.formColumn}>
+            <div className={styles.formGroup}>
+              <label>Brand Preference</label>
+              <div>
+                <label>
+                  <input type="checkbox" name="brandPreference" value="Dell" />
+                  Dell
+                </label>
+                <label>
+                  <input type="checkbox" name="brandPreference" value="HP" />
+                  HP
+                </label>
+                <label>
+                  <input type="checkbox" name="brandPreference" value="Lenovo" />
+                  Lenovo
+                </label>
+                <label>
+                  <input type="checkbox" name="brandPreference" value="Apple" />
+                  Apple
+                </label>
+                <label>
+                  <input type="checkbox" name="brandPreference" value="ASUS" />
+                  ASUS
+                </label>
+                <label>
+                  <input type="checkbox" name="brandPreference" value="Acer" />
+                  Acer
+                </label>
+                <label>
+                  <input type="checkbox" name="brandPreference" value="Others" />
+                  Others
+                </label>
+              </div>
+            </div>
+            <div className={styles.formGroup}>
+              <label>Battery Life</label>
+              <select className={styles.formControl}>
+                <option value="">Select Battery Life</option>
+                <option value="Less than 5 hours">Less than 5 hours</option>
+                <option value="5-8 hours">5-8 hours</option>
+                <option value="8-12 hours">8-12 hours</option>
+                <option value="More than 12 hours">More than 12 hours</option>
+              </select>
+            </div>
+          </div>
+        </div>
+         <div className={styles.formRow}>
+                  <div className={styles.formColumn}>
+                    <div className={styles.formGroup}>
+                      <label>Weight</label>
+                      <select className={styles.formControl}>
+                        <option value="">Select Weight</option>
+                        <option value="Less than 2 kg">Less than 2 kg</option>
+                        <option value="2-3 kg">2-3 kg</option>
+                        <option value="3-4 kg">3-4 kg</option>
+                        <option value="More than 4 kg">More than 4 kg</option>
+                      </select>
+                    </div>
+                    <div className={styles.formGroup}>
+                      <label>Screen Size</label>
+                      <div>
+                        <label>
+                          <input type="radio" name="screenSize" value="11-13 inches" />
+                          11-13 inches
+                        </label>
+                        <label>
+                          <input type="radio" name="screenSize" value="13-15 inches" />
+                          13-15 inches
+                        </label>
+                        <label>
+                          <input type="radio" name="screenSize" value="15-17 inches" />
+                          15-17 inches
+                        </label>
+                        <label>
+                          <input type="radio" name="screenSize" value="17 inches and above" />
+                          17 inches and above
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                  <div className={styles.formColumn}>
+                    <div className={styles.formGroup}>
+                      <label>Screen Resolution</label>
+                      <select className={styles.formControl}>
+                        <option value="">Select Screen Resolution</option>
+                        <option value="HD (1280x720)">HD (1280x720)</option>
+                        <option value="Full HD (1920x1080)">Full HD (1920x1080)</option>
+                        <option value="2K (2560x1440)">2K (2560x1440)</option>
+                        <option value="4K (3840x2160)">4K (3840x2160)</option>
+                      </select>
+                    </div>
+                    <div className={styles.formGroup}>
+                      <label>Operating System</label>
+                      <div>
+                        <label>
+                          <input type="radio" name="operatingSystem" value="Windows" />
+                          Windows
+                        </label>
+                        <label>
+                          <input type="radio" name="operatingSystem" value="macOS" />
+                          macOS
+                        </label>
+                        <label>
+                          <input type="radio" name="operatingSystem" value="Linux" />
+                          Linux
+                        </label>
+                        <label>
+                          <input type="radio" name="operatingSystem" value="Chrome OS" />
+                          Chrome OS
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div className={styles.formRow}>
+                  <div className={styles.formColumn}>
+                    <div className={styles.formGroup}>
+                      <label>Processor Type</label>
+                      <select className={styles.formControl}>
+                        <option value="">Select Processor Type</option>
+                        <option value="Intel Core i3">Intel Core i3</option>
+                        <option value="Intel Core i5">Intel Core i5</option>
+                        <option value="Intel Core i7">Intel Core i7</option>
+                        <option value="Intel Core i9">Intel Core i9</option>
+                        <option value="AMD Ryzen 3">AMD Ryzen 3</option>
+                        <option value="AMD Ryzen 5">AMD Ryzen 5</option>
+                        <option value="AMD Ryzen 7">AMD Ryzen 7</option>
+                        <option value="AMD Ryzen 9">AMD Ryzen 9</option>
+                      </select>
+                    </div>
+                    <div className={styles.formGroup}>
+                      <label>RAM</label>
+                      <select className={styles.formControl}>
+                        <option value="">Select RAM</option>
+                        <option value="4GB">4GB</option>
+                        <option value="8GB">8GB</option>
+                        <option value="16GB">16GB</option>
+                        <option value="32GB">32GB</option>
+                        <option value="64GB">64GB</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className={styles.formColumn}>
+                    <div className={styles.formGroup}>
+                      <label>Storage Type</label>
+                      <div>
+                        <label>
+                          <input type="radio" name="storageType" value="SSD" />
+                          SSD
+                        </label>
+                        <label>
+                          <input type="radio" name="storageType" value="HDD" />
+                          HDD
+                        </label>
+                        <label>
+                          <input type="radio" name="storageType" value="Hybrid (SSD + HDD)" />
+                          Hybrid (SSD + HDD)
+                        </label>
+                      </div>
+                    </div>
+                    <div className={styles.formGroup}>
+                      <label>Storage Capacity</label>
+                      <select className={styles.formControl}>
+                        <option value="">Select Storage Capacity</option>
+                        <option value="128GB">128GB</option>
+                        <option value="256GB">256GB</option>
+                        <option value="512GB">512GB</option>
+                        <option value="1TB">1TB</option>
+                        <option value="2TB">2TB</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+                <div className={styles.formRow}>
+                  <div className={styles.formColumn}>
+                    <div className={styles.formGroup}>
+                      <label>Graphics Card</label>
+                      <div>
+                        <label>
+                          <input type="checkbox" name="graphicsCard" value="NVIDIA GeForce GTX series" />
+                          NVIDIA GeForce GTX series
+                        </label>
+                        <label>
+                          <input type="checkbox" name="graphicsCard" value="NVIDIA GeForce RTX series" />
+                          NVIDIA GeForce RTX series
+                        </label>
+                        <label>
+                          <input type="checkbox" name="graphicsCard" value="AMD Radeon RX series" />
+                          AMD Radeon RX series
+                        </label>
+                        <label>
+                          <input type="checkbox" name="graphicsCard" value="Intel Integrated Graphics" />
+                          Intel Integrated Graphics
+                        </label>
+                      </div>
+                    </div>
+                    <div className={styles.formGroup}>
+                      <label>Portability</label>
+                      <div>
+                        <label>
+                          <input type="radio" name="portability" value="Not Important" />
+                          Not Important
+                        </label>
+                        <label>
+                          <input type="radio" name="portability" value="Somewhat Important" />
+                          Somewhat Important
+                        </label>
+                        <label>
+                          <input type="radio" name="portability" value="Very Important" />
+                          Very Important
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                  <div className={styles.formColumn}>
+                    <div className={styles.formGroup}>
+                      <label>Build Quality</label>
+                      <div>
+                        <label>
+                          <input type="radio" name="buildQuality" value="Plastic" />
+                          Plastic
+                        </label>
+                        <label>
+                          <input type="radio" name="buildQuality" value="Aluminum" />
+                          Aluminum
+                        </label>
+                        <label>
+                          <input type="radio" name="buildQuality" value="Carbon Fiber" />
+                          Carbon Fiber
+                        </label>
+                        <label>
+                          <input type="radio" name="buildQuality" value="Other" />
+                          Other
+                        </label>
+                      </div>
+                    </div>
+                    <div className={styles.formGroup}>
+                      <label>Keyboard and Touchpad Quality</label>
+                      <div>
+                        <label>
+                          <input type="radio" name="keyboardQuality" value="Not Important" />
+                          Not Important
+                        </label>
+                        <label>
+                          <input type="radio" name="keyboardQuality" value="Somewhat Important" />
+                          Somewhat Important
+                        </label>
+                        <label>
+                          <input type="radio" name="keyboardQuality" value="Very Important" />
+                          Very Important
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div className={styles.formRow}>
+                  <div className={styles.formColumn}>
+                    <div className={styles.formGroup}>
+                      <label>Additional Features</label>
+                      <div>
+                        <label>
+                          <input type="checkbox" name="additionalFeatures" value="Fingerprint Reader" />
+                          Fingerprint Reader
+                        </label>
+                        <label>
+                          <input type="checkbox" name="additionalFeatures" value="HD Webcam" />
+                          HD Webcam
+                        </label>
+                        <label>
+                          <input type="checkbox" name="additionalFeatures" value="Backlit Keyboard" />
+                          Backlit Keyboard
+                        </label>
+                        <label>
+                          <input type="checkbox" name="additionalFeatures" value="Touchscreen" />
+                          Touchscreen
+                        </label>
+                        <label>
+                          <input type="checkbox" name="additionalFeatures" value="USB-C Ports" />
+                          USB-C Ports
+                        </label>
+                        <label>
+                          <input type="checkbox" name="additionalFeatures" value="HDMI Ports" />
+                          HDMI Ports
+                        </label>
+                        <label>
+                          <input type="checkbox" name="additionalFeatures" value="Thunderbolt Ports" />
+                          Thunderbolt Ports
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                  <div className={styles.formColumn}>
+                    <div className={styles.formGroup}>
+                      <label>Warranty and Support</label>
+                      <select className={styles.formControl}>
+                        <option value="">Select Warranty and Support</option>
+                        <option value="No warranty">No warranty</option>
+                        <option value="1-year warranty">1-year warranty</option>
+                        <option value="2-year warranty">2-year warranty</option>
+                        <option value="3-year warranty">3-year warranty</option>
+                        <option value="On-site service">On-site service</option>
+                        <option value="Phone support">Phone support</option>
+                        <option value="Email support">Email support</option>
+                      </select>
+                    </div>
+                    <div className={styles.formGroup}>
+                      <label>Customization Options</label>
+                      <div>
+                        <label>
+                          <input type="checkbox" name="customizationOptions" value="Upgradeable RAM" />
+                          Upgradeable RAM
+                        </label>
+                        <label>
+                          <input type="checkbox" name="customizationOptions" value="Upgradeable SSD" />
+                          Upgradeable SSD
+                        </label>
+                        <label>
+                          <input type="checkbox" name="customizationOptions" value="Upgradeable GPU" />
+                          Upgradeable GPU
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div className={styles.formRow}>
+                  <div className={styles.formColumn}>
+                    <div className={styles.formGroup}>
+                      <label>Cooling System</label>
+                      <div>
+                        <label>
+                          <input type="radio" name="coolingSystem" value="Basic Cooling" />
+                          Basic Cooling
+                        </label>
+                        <label>
+                          <input type="radio" name="coolingSystem" value="Dual Fans" />
+                          Dual Fans
+                        </label>
+                        <label>
+                          <input type="radio" name="coolingSystem" value="Liquid Cooling" />
+                          Liquid Cooling
+                        </label>
+                      </div>
+                    </div>
+                    <div className={styles.formGroup}>
+                      <label>Connectivity Options</label>
+                      <div>
+                        <label>
+                          <input type="checkbox" name="connectivityOptions" value="USB-C" />
+                          USB-C
+                        </label>
+                        <label>
+                          <input type="checkbox" name="connectivityOptions" value="HDMI" />
+                          HDMI
+                        </label>
+                        <label>
+                          <input type="checkbox" name="connectivityOptions" value="Thunderbolt" />
+                          Thunderbolt
+                        </label>
+                        <label>
+                          <input type="checkbox" name="connectivityOptions" value="Ethernet" />
+                          Ethernet
+                        </label>
+                        <label>
+                          <input type="checkbox" name="connectivityOptions" value="SD Card Reader" />
+                          SD Card Reader
+                        </label>
+                        <label>
+                          <input type="checkbox" name="connectivityOptions" value="3.5mm Audio Jack" />
+                          3.5mm Audio Jack
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                  <div className={styles.formColumn}>
+                    <div className={styles.formGroup}>
+                      <label>Battery Type</label>
+                      <div>
+                        <label>
+                          <input type="radio" name="batteryType" value="Lithium-ion" />
+                          Lithium-ion
+                        </label>
+                        <label>
+                          <input type="radio" name="batteryType" value="Lithium-polymer" />
+                          Lithium-polymer
+                        </label>
+                      </div>
+                    </div>
+                    <div className={styles.formGroup}>
+                      <label>Software and Pre-installed Apps</label>
+                      <div>
+                        <label>
+                          <input type="radio" name="softwareApps" value="Minimal pre-installed apps" />
+                          Minimal pre-installed apps
+                        </label>
+                        <label>
+                          <input type="radio" name="softwareApps" value="Standard pre-installed apps" />
+                          Standard pre-installed apps
+                        </label>
+                        <label>
+                          <input type="radio" name="softwareApps" value="Custom software options" />
+                          Custom software options
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+        <button type="submit" className={styles.ctaButton}>Get Recommendations</button>
+      </form>
+    </div>
+  );
+};
+
+export default LaptopRecommendations;
+
+
+================================================================================
+// File: C:\Users\Administrator\Desktop\laptopia\src\components\LaptopRecommendations.module.css
+================================================================================
+/* Form Section Styles */
+.recommendationSection {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-bottom: 3rem;
+    padding: 2rem;
+    background: #f8fafc;
+    border-radius: 1rem;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    width: 100%;
+    margin: 0 auto;
+    
+  }
+  
+  .formTitle {
+    font-size: 1.5rem;
+    margin-bottom: 1rem;
+    color: #3b82f6;
+    text-align: center;
+  }
+  
+  .form {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 1rem;
+    background: white;
+    border-radius: 0.5rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+  
+  .formRow {
+    display: flex;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+  }
+  
+  .formColumn {
+    flex: 1;
+    margin-right: 1rem;
+  }
+  
+  .formGroup {
+    margin-bottom: 1rem;
+  }
+  
+  .formGroup label {
+    display: block;
+    margin-bottom: 0.5rem;
+    color: #4b5563;
+    font-size: 0.9rem;
+  }
+  
+  .formControl {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #3b82f6;
+    border-radius: 0.375rem;
+    font-size: 0.9rem;
+  }
+  
+  /* Required fields indicator */
+  .formGroup label:after {
+    content: '*';
+    color: red;
+    margin-left: 0.25rem;
+  }
+  
+  /* Optional fields indicator */
+  .formGroup.optional label:after {
+    content: '(Optional)';
+    color: gray;
+    margin-left: 0.25rem;
+  }
+  
+  /* Responsive adjustments */
+  @media (max-width: 768px) {
+    .formRow {
+      flex-direction: column;
+    }
+  
+    .formColumn {
+      margin-right: 0;
+      margin-bottom: 1rem;
+    }
+  }
+  
+  /* Button Styles */
+  .ctaButton {
+    padding: 0.75rem 1.5rem;
+    background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+    color: white;
+    border: none;
+    border-radius: 0.375rem;
+    font-weight: 600;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background 0.3s ease;
+  }
+  
+  .ctaButton:hover {
+    background: linear-gradient(90deg, #2563eb, #7c3aed);
+  }
+
+================================================================================
+// File: C:\Users\Administrator\Desktop\laptopia\src\components\LatestModels.jsx
+================================================================================
+// src/components/LatestModels.jsx
+
+import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
+import styles from './LatestModels.module.css';
+
+const LatestModels = () => {
+  const [selectedCompany, setSelectedCompany] = useState(null);
+
+  const laptops = [
+    {
+      id: 1,
+      name: 'Dell XPS 13',
+      image: '../../public/images/Dell XPS 13/notebook-xps-13-9345-t-gray-gallery-10.avif',
+      specs: 'Intel Core i7, 16GB RAM, 512GB SSD',
+      company: 'Dell',
+      details: {
+        description: 'The Dell XPS 13 is a high-performance ultrabook with a sleek design.',
+        images: [
+          '../../public/images/Dell XPS 13/notebook-xps-13-9345-t-gray-gallery-2.avif',
+          '../../public/images/Dell XPS 13/notebook-xps-13-9345-t-gray-gallery-5.avif'
+        ],
+        buyLink: 'https://www.dell.com/xps13'
+      }
+    },
+    // Add more laptops as needed
+  ];
+
+  const handleCompanyClick = (company) => {
+    if (selectedCompany === company) {
+      setSelectedCompany(null); // Reset filter if the same company is clicked again
+    } else {
+      setSelectedCompany(company);
+    }
+  };
+
+  const filteredLaptops = selectedCompany
+    ? laptops.filter((laptop) => laptop.company === selectedCompany)
+    : laptops;
+
+  return (
+    <div className={styles.latestModelsSection}>
+      <h2 className={styles.sectionTitle}>Explore Latest Models</h2>
+      <div className={styles.companyFilters}>
+        <button
+          className={selectedCompany === 'Dell' ? styles.activeFilter : styles.filterButton}
+          onClick={() => handleCompanyClick('Dell')}
+        >
+          Dell
+        </button>
+        <button
+          className={selectedCompany === 'HP' ? styles.activeFilter : styles.filterButton}
+          onClick={() => handleCompanyClick('HP')}
+        >
+          HP
+        </button>
+        <button
+          className={selectedCompany === 'Lenovo' ? styles.activeFilter : styles.filterButton}
+          onClick={() => handleCompanyClick('Lenovo')}
+        >
+          Lenovo
+        </button>
+        {/* Add more company buttons as needed */}
+      </div>
+      <div className={styles.laptopGrid}>
+        {filteredLaptops.map((laptop) => (
+          <div key={laptop.id} className={styles.laptopCard}>
+            <img src={laptop.image} alt={laptop.name} className={styles.laptopImage} />
+            <h3 className={styles.laptopName}>{laptop.name}</h3>
+            <p className={styles.laptopSpecs}>{laptop.specs}</p>
+            <Link
+              to="/laptop-details"
+              state={{ laptop }}
+              className={styles.readMoreButton}
+            >
+              Read More
+            </Link>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+export default LatestModels;
+
+================================================================================
+// File: C:\Users\Administrator\Desktop\laptopia\src\components\LatestModels.module.css
+================================================================================
+.latestModelsSection {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  margin-bottom: 3rem;
+  padding: 2rem;
+  background: #f8fafc;
+  border-radius: 1rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.latestModelsSection h2 {
+  font-size: 2rem;
+  margin-bottom: 1rem;
+  color: #1e3a8a;
+}
+
+.companyFilters {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.filterButton {
+  padding: 0.5rem 1rem;
+  background-color: #f8fafc;
+  border: 1px solid #3b82f6;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.filterButton:hover,
+.filterButton.activeFilter {
+  background-color: #3b82f6;
+  color: white;
+}
+
+.laptopGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 2rem;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.laptopCard {
+  background: white;
+  border-radius: 0.5rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  text-align: center;
+  transition: transform 0.3s ease;
+}
+
+.laptopCard:hover {
+  transform: translateY(-5px);
+}
+
+.laptopImage {
+  width: 100%;
+  height: auto;
+  border-radius: 0.5rem 0.5rem 0 0;
+}
+
+.laptopName {
+  font-size: 1.25rem;
+  margin: 1rem 0 0.5rem;
+  color: #1e3a8a;
+}
+
+.laptopSpecs {
+  font-size: 1rem;
+  margin-bottom: 1rem;
+  color: #4b5563;
+}
+
+.readMoreButton {
+  display: inline-block;
+  padding: 0.5rem 1rem;
+  background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+.readMoreButton:hover {
+  background: linear-gradient(90deg, #2563eb, #7c3aed);
+}
+
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal {
+  background: white;
+  padding: 2rem;
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  width: 80%;
+  max-width: 800px;
+  text-align: center;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.closeButton {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  background: none;
+  border: none;
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 0.5rem;
+  border-radius: 50%;
+  background-color: #f8fafc;
+  border: 1px solid #3b82f6;
+  color: #3b82f6;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.closeButton:hover {
+  background-color: #3b82f6;
+  color: white;
+}
+
+.modalContent {
+  display: flex;
+  width: 100%;
+  margin-top: 2rem;
+}
+
+.modalImages {
+  width: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.modalImage {
+  width: 80%;
+  height: auto;
+  margin: 0.5rem 0;
+  border-radius: 0.5rem;
+  object-fit: cover;
+}
+
+.modalDetails {
+  width: 50%;
+  padding: 0 2rem;
+}
+
+.modalDetails h2 {
+  font-size: 1.5rem;
+  margin-bottom: 1rem;
+  color: #1e3a8a;
+}
+
+.modalDetails p {
+  font-size: 1rem;
+  margin-bottom: 1rem;
+  color: #4b5563;
+}
+
+.buyButton {
+  display: inline-block;
+  padding: 0.5rem 1rem;
+  background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+.buyButton:hover {
+  background: linear-gradient(90deg, #2563eb, #7c3aed);
+}
+
+================================================================================
+// File: C:\Users\Administrator\Desktop\laptopia\src\components\LatestModelsPage.jsx
+================================================================================
+// src/components/LatestModelsPage.jsx
+
+import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import styles from './LatestModelsPage.module.css';
+import laptopData from './laptops.json';
+
+const LatestModelsPage = () => {
+  const [searchTerm, setSearchTerm] = useState('');
+  const [laptops, setLaptops] = useState([]);
+
+  useEffect(() => {
+    setLaptops(laptopData);
+  }, []);
+
+  const filteredLaptops = laptops.filter(laptop =>
+    laptop.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    laptop.specs.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    laptop.company.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  return (
+    <div className={styles.pageContainer}>
+      <h1 className={styles.sectionTitle}>Explore Latest Models</h1>
+      <input
+        type="text"
+        placeholder="Search for laptops..."
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
+        className={styles.searchBar}
+      />
+      <div className={styles.laptopGrid}>
+        {filteredLaptops.map((laptop) => (
+          <div key={laptop.id} className={styles.laptopCard}>
+            <img src={laptop.image} alt={laptop.name} className={styles.laptopImage} />
+            <h3 className={styles.laptopName}>{laptop.name}</h3>
+            <p className={styles.laptopSpecs}>{laptop.specs}</p>
+            <Link
+              to="/laptop-details"
+              state={{ laptop }}
+              className={styles.readMoreButton}
+            >
+              Read More
+            </Link>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+export default LatestModelsPage;
+
+================================================================================
+// File: C:\Users\Administrator\Desktop\laptopia\src\components\LatestModelsPage.module.css
+================================================================================
+/* src/components/LatestModelsPage.module.css */
+
+.pageContainer {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+    text-align: center;
+  }
+  
+  .sectionTitle {
+    font-size: 2rem;
+    margin-bottom: 1rem;
+    color: #1e3a8a;
+  }
+  
+  .searchBar {
+    width: 100%;
+    max-width: 600px;
+    margin: 1rem auto;
+    padding: 0.75rem;
+    border: 1px solid #3b82f6;
+    border-radius: 0.5rem;
+    font-size: 1rem;
+  }
+  
+  .laptopGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 2rem;
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  
+  .laptopCard {
+    background: white;
+    border-radius: 0.5rem;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    text-align: center;
+    transition: transform 0.3s ease;
+  }
+  
+  .laptopCard:hover {
+    transform: translateY(-5px);
+  }
+  
+  .laptopImage {
+    width: 100%;
+    height: auto;
+    border-radius: 0.5rem 0.5rem 0 0;
+  }
+  
+  .laptopName {
+    font-size: 1.25rem;
+    margin: 1rem 0 0.5rem;
+    color: #1e3a8a;
+  }
+  
+  .laptopSpecs {
+    font-size: 1rem;
+    margin-bottom: 1rem;
+    color: #4b5563;
+  }
+  
+  .readMoreButton {
+    display: inline-block;
+    padding: 0.5rem 1rem;
+    background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+    color: white;
+    border: none;
+    border-radius: 0.5rem;
+    cursor: pointer;
+    transition: background 0.3s ease;
+  }
+  
+  .readMoreButton:hover {
+    background: linear-gradient(90deg, #2563eb, #7c3aed);
+  }
+
+================================================================================
+// File: C:\Users\Administrator\Desktop\laptopia\src\components\LoginPage.jsx
+================================================================================
+// src/components/LoginPage.jsx
+import React, { useState, useRef, useEffect } from "react";
+import { useNavigate, useLocation, Link } from "react-router-dom";
+import { FaUserAlt, FaLock, FaEye, FaEyeSlash, FaSpinner } from "react-icons/fa";
+import styles from "./LoginPage.module.css";
+import axios from "axios";
+import { useAuth } from "../context/AuthContext";
+
+const LoginPage = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const emailRef = useRef();
+  const passwordRef = useRef();
+  const { login } = useAuth();
+
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [attempts, setAttempts] = useState(0);
+  const [mfaEnabled, setMfaEnabled] = useState(false);
+
+  // Where to redirect after login
+  const redirectTo = location.state?.redirectTo || "/recommended-laptops";
+
+  useEffect(() => {
+    emailRef.current?.focus();
+  }, []);
+
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setError("");
+
+    if (!email || !password) {
+      setError("Please fill in all fields.");
+      return;
+    }
+
+    if (!/^\S+@\S+\.\S+$/.test(email)) {
+      setError("Please enter a valid email address.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Real login to backend
+      const res = await axios.post("http://localhost:5000/api/auth/login", {
+        email,
+        password,
+      });
+
+      // Expects: { token, user: {_id, name, email} }
+      if (res.data && res.data.token && res.data.user) {
+        login({
+          ...res.data.user,
+          token: res.data.token,
+        });
+        navigate(redirectTo, { replace: true });
+      } else {
+        setError("Unexpected response from server.");
+      }
+    } catch (err) {
+      setAttempts((prev) => prev + 1);
+      if (err.response?.data?.message) {
+        setError(err.response.data.message);
+      } else {
+        setError("Incorrect email or password.");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleMfaToggle = () => setMfaEnabled((prev) => !prev);
+
+  return (
+    <div className={styles.loginContainer}>
+      <form className={styles.loginForm} onSubmit={handleLogin} autoComplete="off">
+        <div className={styles.logoRow}>
+          <img
+            src="/favicon.ico"
+            alt="Laptopia Logo"
+            className={styles.logoImg}
+          />
+          <h1 className={styles.brandTitle}>LAPTOPIA</h1>
+        </div>
+
+        <h2 className={styles.loginTitle}>Welcome Back!</h2>
+        <p className={styles.subText}>Sign in to continue and save your recommendations.</p>
+        <div className={styles.formGroup}>
+          <label htmlFor="email">
+            <FaUserAlt className={styles.inputIcon} /> Email
+          </label>
+          <input
+            type="email"
+            id="email"
+            name="email"
+            ref={emailRef}
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="you@example.com"
+            disabled={loading}
+            required
+            aria-label="Email address"
+            autoComplete="username"
+          />
+        </div>
+        <div className={styles.formGroup}>
+          <label htmlFor="password">
+            <FaLock className={styles.inputIcon} /> Password
+          </label>
+          <div className={styles.passwordInput}>
+            <input
+              type={showPassword ? "text" : "password"}
+              id="password"
+              name="password"
+              ref={passwordRef}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Your secure password"
+              disabled={loading}
+              required
+              aria-label="Password"
+              autoComplete="current-password"
+            />
+            <button
+              type="button"
+              className={styles.togglePassword}
+              aria-label={showPassword ? "Hide password" : "Show password"}
+              tabIndex={0}
+              onClick={() => setShowPassword((prev) => !prev)}
+              disabled={loading}
+            >
+              {showPassword ? <FaEyeSlash /> : <FaEye />}
+            </button>
+          </div>
+        </div>
+        <div className={styles.rowOptions}>
+          <label className={styles.checkboxLabel}>
+            <input type="checkbox" name="rememberMe" disabled={loading} />
+            Remember Me
+          </label>
+          <label className={styles.checkboxLabel}>
+            <input type="checkbox" checked={mfaEnabled} onChange={handleMfaToggle} disabled={loading} />
+            Enable MFA
+          </label>
+        </div>
+        <div className={styles.forgotRow}>
+          <Link to="/forgot-password" className={styles.forgotPasswordLink}>Forgot Password?</Link>
+        </div>
+        {error && <div className={styles.error} role="alert">{error}</div>}
+        <button type="submit" className={styles.loginButton} disabled={loading}>
+          {loading ? <FaSpinner className={styles.spinner} /> : "Login"}
+        </button>
+        <div className={styles.createRow}>
+          <span>Don&apos;t have an account?</span>
+          <Link to="/create-account" className={styles.createAccountLink}>Create an Account</Link>
+        </div>
+      </form>
+    </div>
+  );
+};
+
+export default LoginPage;
+
+
+================================================================================
+// File: C:\Users\Administrator\Desktop\laptopia\src\components\LoginPage.module.css
+================================================================================
+.loginContainer {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(120deg, #e0e7ff 0%, #f8fafc 100%);
+    animation: fadeInBg 0.7s;
+  }
+  
+  @keyframes fadeInBg {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  
+  .loginForm {
+    background: #fff;
+    border-radius: 1rem;
+    box-shadow: 0 10px 40px 0 rgba(46, 69, 146, 0.08);
+    padding: 2.5rem 2rem 2rem 2rem;
+    max-width: 380px;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 0.9rem;
+    animation: slideFadeIn 0.6s;
+  }
+  
+  @keyframes slideFadeIn {
+    from { opacity: 0; transform: translateY(40px);}
+    to { opacity: 1; transform: translateY(0);}
+  }
+  
+  .logoRow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.7rem;
+    margin-bottom: 0.3rem;
+  }
+  
+  .logoImg {
+    width: 36px;
+    height: 36px;
+    border-radius: 0.6rem;
+    box-shadow: 0 1px 4px 0 #c7d2fe44;
+  }
+  
+  .brandTitle {
+    font-size: 1.5rem;
+    font-weight: 700;
+    background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-fill-color: transparent;
+    letter-spacing: 1px;
+    margin-bottom: 0;
+  }
+  
+  .loginTitle {
+    font-size: 1.3rem;
+    font-weight: 600;
+    color: #1e293b;
+    text-align: center;
+    margin-bottom: 0.1rem;
+  }
+  
+  .subText {
+    color: #64748b;
+    text-align: center;
+    font-size: 1rem;
+    margin-bottom: 0.7rem;
+  }
+  
+  .formGroup {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    margin-bottom: 0.1rem;
+  }
+  
+  .formGroup label {
+    font-size: 1rem;
+    color: #3b82f6;
+    font-weight: 500;
+    margin-bottom: 0.15rem;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+  
+  .inputIcon {
+    font-size: 1.1rem;
+    vertical-align: middle;
+  }
+  
+  .formGroup input[type="email"],
+  .formGroup input[type="password"],
+  .formGroup input[type="text"] {
+    width: 100%;
+    padding: 0.8rem;
+    border: 1.5px solid #cbd5e1;
+    border-radius: 0.45rem;
+    font-size: 1rem;
+    transition: border-color 0.2s;
+    outline: none;
+    background: #f8fafc;
+  }
+  
+  .formGroup input:focus {
+    border-color: #3b82f6;
+    background: #fff;
+  }
+  
+  .passwordInput {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  
+  .togglePassword {
+    background: none;
+    border: none;
+    color: #64748b;
+    font-size: 1.3rem;
+    padding: 0 0.4rem;
+    cursor: pointer;
+    outline: none;
+    transition: color 0.2s;
+  }
+  
+  .togglePassword:active, .togglePassword:focus {
+    color: #3b82f6;
+  }
+  
+  .rowOptions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.8rem;
+    margin-bottom: 0.15rem;
+  }
+  
+  .checkboxLabel {
+    font-size: 0.95rem;
+    color: #64748b;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+  
+  .forgotRow {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 0.25rem;
+  }
+  
+  .forgotPasswordLink {
+    color: #3b82f6;
+    font-size: 0.98rem;
+    text-decoration: none;
+    transition: color 0.2s;
+  }
+  
+  .forgotPasswordLink:hover {
+    color: #2563eb;
+    text-decoration: underline;
+  }
+  
+  .error {
+    color: #e11d48;
+    background: #fee2e2;
+    border-radius: 0.35rem;
+    padding: 0.5rem 0.7rem;
+    font-size: 1rem;
+    text-align: center;
+    margin-bottom: 0.4rem;
+    animation: shakeError 0.3s;
+  }
+  
+  @keyframes shakeError {
+    0% { transform: translateX(-2px);}
+    20% { transform: translateX(4px);}
+    40% { transform: translateX(-4px);}
+    60% { transform: translateX(4px);}
+    80% { transform: translateX(-2px);}
+    100% { transform: translateX(0);}
+  }
+  
+  .loginButton {
+    padding: 0.9rem 0;
+    margin-top: 0.15rem;
+    background: linear-gradient(90deg, #3b82f6 60%, #8b5cf6 100%);
+    color: white;
+    border: none;
+    border-radius: 0.45rem;
+    font-size: 1.13rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.22s, box-shadow 0.18s, transform 0.17s;
+    box-shadow: 0 1px 8px 0 #8b5cf644;
+  }
+  
+  .loginButton:hover, .loginButton:focus {
+    background: linear-gradient(90deg, #2563eb 50%, #7c3aed 100%);
+    transform: translateY(-2px) scale(1.02);
+  }
+  
+  .loginButton:disabled {
+    background: #cbd5e1;
+    color: #64748b;
+    cursor: not-allowed;
+  }
+  
+  .spinner {
+    animation: spin 1s linear infinite;
+    font-size: 1.1rem;
+  }
+  
+  @keyframes spin {
+    0% { transform: rotate(0);}
+    100% { transform: rotate(360deg);}
+  }
+  
+  .createRow {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 1rem;
+    margin-top: 0.7rem;
+    color: #64748b;
+  }
+  
+  .createAccountLink {
+    color: #8b5cf6;
+    font-weight: 500;
+    text-decoration: none;
+    transition: color 0.18s;
+  }
+  
+  .createAccountLink:hover {
+    color: #3b82f6;
+  }
+  
+  @media (max-width: 520px) {
+    .loginForm {
+      padding: 1.2rem 0.7rem;
+      max-width: 98vw;
+      border-radius: 0.65rem;
+    }
+    .loginContainer {
+      padding: 0.2rem;
+    }
+    .brandTitle { font-size: 1.2rem; }
+    .loginTitle { font-size: 1.1rem; }
+  }
+  
+
+================================================================================
+// File: C:\Users\Administrator\Desktop\laptopia\src\components\Pages.module.css
+================================================================================
+.pageContainer {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.pageContainer h1 {
+  font-size: 2rem;
+  margin-bottom: 1rem;
+  color: #1e3a8a;
+}
+
+.pageContainer p {
+  color: #4b5563;
+  font-size: 1.1rem;
+}
+
+.recommendationForm {
+  margin-bottom: 2rem;
+}
+
+.formGroup {
+  margin-bottom: 1rem;
+}
+
+.formGroup label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: #1e3a8a;
+}
+
+.formGroup input {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #3b82f6;
+  border-radius: 0.375rem;
+  font-size: 1rem;
+}
+
+.ctaButton {
+  display: inline-block;
+  padding: 0.75rem 1.5rem;
+  background: #3b82f6;
+  color: white;
+  text-decoration: none;
+  border-radius: 0.375rem;
+  font-weight: 500;
+  transition: background 0.3s ease;
+}
+
+.ctaButton:hover {
+  background: #2563eb;
+}
+
+.recommendationResults {
+  background: #f8fafc;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+@media (max-width: 768px) {
+  .pageContainer {
+    max-width: 100%;
+    padding: 1rem;
+  }
+}
+
+/* ... (previous styles) ... */
+
+.inputField {
+  width: 100%;
+  padding: 1rem;
+  margin-bottom: 2rem;
+  border: 1px solid #3b82f6;
+  border-radius: 0.5rem;
+  font-size: 1rem;
+  resize: vertical; /* Allow vertical resizing */
+  min-height: 100px; /* Minimum height for the textarea */
+}
+
+/* ... (previous styles) ... */
+
+/* Recommendation Section Styles */
+.recommendationSection {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  margin-bottom: 3rem;
+  padding: 2rem;
+  background: #f8fafc;
+  border-radius: 1rem;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.recommendationInput {
+  flex: 1;
+  margin-right: 2rem;
+}
+
+.recommendationInput h2 {
+  font-size: 2rem;
+  margin-bottom: 1rem;
+  color: #1e3a8a;
+}
+
+.recommendationInput p {
+  font-size: 1.1rem;
+  margin-bottom: 2rem;
+  color: #4b5563;
+}
+
+.inputField {
+  width: 100%;
+  padding: 1rem;
+  margin-bottom: 2rem;
+  border: 1px solid #3b82f6;
+  border-radius: 0.5rem;
+  font-size: 1rem;
+  resize: vertical; /* Allow vertical resizing */
+  min-height: 100px; /* Minimum height for the textarea */
+}
+
+.ctaButton {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.75rem 2rem;
+  background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+  color: white;
+  text-decoration: none;
+  border-radius: 9999px;
+  font-weight: 600;
+  font-size: 1rem;
+  border: none;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+  z-index: 1;
+}
+
+.ctaButton::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, #2563eb, #7c3aed);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  z-index: -1;
+}
+
+.ctaButton:hover::before {
+  opacity: 1;
+}
+
+.ctaButton span {
+  position: relative;
+  z-index: 2;
+}
+
+/* ... (previous styles) ... */
+
+================================================================================
+// File: C:\Users\Administrator\Desktop\laptopia\src\components\Pagination.jsx
+================================================================================
+// Pagination.jsx
+import React from 'react';
+import styles from './Pagination.module.css';
+
+const Pagination = ({ currentPage, totalPages, onPageChange }) => {
+  const pages = [...Array(totalPages).keys()].map(i => i + 1);
+
+  return (
+    <div className={styles.pagination}>
+      <button
+        onClick={() => onPageChange(currentPage - 1)}
+        disabled={currentPage === 1}
+      >
+        ⬅ Prev
+      </button>
+
+      {pages.map((page) => (
+        <button
+          key={page}
+          onClick={() => onPageChange(page)}
+          className={page === currentPage ? styles.active : ''}
+        >
+          {page}
+        </button>
+      ))}
+
+      <button
+        onClick={() => onPageChange(currentPage + 1)}
+        disabled={currentPage === totalPages}
+      >
+        Next ➡
+      </button>
+    </div>
+  );
+};
+
+export default Pagination;
+
+
+================================================================================
+// File: C:\Users\Administrator\Desktop\laptopia\src\components\Pagination.module.css
+================================================================================
+.pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 2rem 0;
+  }
+  
+  .pagination button {
+    padding: 0.5rem 1rem;
+    background-color: #e5e7eb;
+    border: none;
+    border-radius: 0.375rem;
+    cursor: pointer;
+    font-size: 1rem;
+  }
+  
+  .pagination button:hover {
+    background-color: #d1d5db;
+  }
+  
+  .pagination .active {
+    background-color: #2563eb;
+    color: white;
+  }
+  
+
+================================================================================
+// File: C:\Users\Administrator\Desktop\laptopia\src\components\PreferencesSummary.jsx
+================================================================================
+// PreferencesSummary.jsx
+import React from 'react';
+import styles from './PreferencesSummary.module.css';
+
+const PreferencesSummary = ({ preferences }) => {
+  return (
+    <div className={styles.summaryBox}>
+      <h2>User Preferences</h2>
+      <ul>
+        {Object.entries(preferences).map(([key, value]) => (
+          <li key={key}><strong>{key}:</strong> {value}</li>
+        ))}
+      </ul>
+    </div>
+  );
+};
+
+export default PreferencesSummary;
+
+
+================================================================================
+// File: C:\Users\Administrator\Desktop\laptopia\src\components\PreferencesSummary.module.css
+================================================================================
+.summaryBox {
+    background-color: #f9fafb;
+    padding: 1.5rem;
+    border-radius: 0.5rem;
+    box-shadow: 0 1px 5px rgba(0, 0, 0, 0.05);
+    margin: 1.5rem 0;
+  }
+  
+  .summaryBox h2 {
+    font-size: 1.5rem;
+    color: #2563eb;
+    margin-bottom: 1rem;
+  }
+  
+  .summaryBox ul {
+    list-style: none;
+    padding: 0;
+  }
+  
+  .summaryBox li {
+    font-size: 1rem;
+    margin-bottom: 0.5rem;
+    color: #374151;
+  }
+  
+
+================================================================================
+// File: C:\Users\Administrator\Desktop\laptopia\src\components\ReAskBox.jsx
+================================================================================
+import React from 'react';
+import styles from './ReAskBox.module.css';
+import { toast } from 'react-toastify';
+
+const ReAskBox = ({ value, onChange, onSubmit }) => {
+  const handleAskAgain = () => {
+    onSubmit();
+    toast.info("🔄 Searching for better options...");
+  };
+
+  return (
+    <div className={styles.reAskSection}>
+      <textarea
+        className={styles.reAskTextArea}
+        placeholder="Describe what you’re looking for..."
+        value={value}
+        onChange={onChange}
+      ></textarea>
+      <div className={styles.reAskAction}>
+        <button className={styles.askAgainButton} onClick={handleAskAgain}>
+          🔄 Ask Again
+        </button>
+      </div>
+    </div>
+  );
+};
+
+export default ReAskBox;
+
+
+================================================================================
+// File: C:\Users\Administrator\Desktop\laptopia\src\components\ReAskBox.module.css
+================================================================================
+/* ReAskBox Styling */
+.reAskSection {
+  background-color: #fff;
+  border-radius: 10px;
+  padding: 2rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  margin-top: 3rem;
+  text-align: center;
+  max-width: 800px;
+  margin: 2rem auto;
+  animation: slideIn 0.5s ease-out;
+}
+
+/* Textarea styling */
+.reAskTextArea {
+  width: 100%;
+  height: 120px;
+  padding: 1rem;
+  font-size: 1rem;
+  border-radius: 8px;
+  border: 1px solid #ddd;
+  margin-bottom: 1rem;
+  resize: none;
+  transition: all 0.3s ease;
+  box-sizing: border-box;
+}
+
+.reAskTextArea:focus {
+  border-color: #3b82f6;
+  outline: none;
+  box-shadow: 0 0 8px rgba(59, 130, 246, 0.5);
+}
+
+/* Ask Again Button Styling */
+.reAskAction {
+  display: flex;
+  justify-content: center;
+  margin-top: 1rem;
+}
+
+.askAgainButton {
+  background-color: #3b82f6;
+  color: white;
+  padding: 0.75rem 2rem;
+  border: none;
+  border-radius: 50px;
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: background-color 0.3s, transform 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.askAgainButton:hover {
+  background-color: #2563eb;
+  transform: translateY(-2px); /* Slight elevation effect */
+}
+
+.askAgainButton:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+/* Animation for the section */
+@keyframes slideIn {
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 768px) {
+  .reAskSection {
+    padding: 1.5rem;
+  }
+
+  .askAgainButton {
+    font-size: 1rem;
+    padding: 0.75rem 1.5rem;
+  }
+}
+
+
+================================================================================
+// File: C:\Users\Administrator\Desktop\laptopia\src\components\RecommendedLaptops.jsx
+================================================================================
+// src/components/RecommendedLaptops.jsx
+import React, { useEffect, useState, useRef, useMemo } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import axios from 'axios';
+import { toast } from 'react-toastify';
+
+import styles from './RecommendedLaptops.module.css';
+import LaptopCard from './LaptopCard';
+import PreferencesSummary from './PreferencesSummary';
+import FilterBar from './FilterBar';
+import ReAskBox from './ReAskBox';
+import Pagination from './Pagination';
+import { useAuth } from '../context/AuthContext';
+
+const RecommendedLaptops = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const { user } = useAuth();
+
+  // Memoize preferences so the dependency doesn't trigger infinite re-renders
+  const { userPreferences = {} } = location.state || {};
+  const memoizedPreferences = useMemo(
+    () => userPreferences,
+    [JSON.stringify(userPreferences)]
+  );
+
+  const [filteredLaptops, setFilteredLaptops] = useState([]);
+  const [allLaptops, setAllLaptops] = useState([]);
+  const [inputText, setInputText] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [loading, setLoading] = useState(true);
+  const [savingId, setSavingId] = useState(null);
+  const [justSaved, setJustSaved] = useState(null);
+  const [savedLaptops, setSavedLaptops] = useState([]);
+  const [loadingSaved, setLoadingSaved] = useState(false);
+  const laptopsPerPage = 6;
+  const initialLoad = useRef(true);
+
+  // Fetch laptops from DB only once per (user/preferences) combination
+  useEffect(() => {
+    let isMounted = true;
+    setLoading(true);
+
+    axios
+      .get('http://localhost:5000/api/laptops')
+      .then(({ data }) => {
+        if (!isMounted) return;
+        setAllLaptops(data);
+        setFilteredLaptops(data);
+
+        // Log recommendations (don't block UI on error)
+        axios.post('http://localhost:5000/api/recommendations/auto-log', {
+          userId: user ? user._id : null,
+          preferencesSource: memoizedPreferences.inputText
+            ? 'text'
+            : memoizedPreferences.advanced
+            ? 'advanced'
+            : 'basic',
+          preferences: memoizedPreferences,
+          recommendedLaptops: data,
+        }).catch(() => {});
+      })
+      .catch(() => {
+        toast.error("Couldn't connect to server. Showing offline data.");
+        import('./laptops.json').then((mod) => {
+          if (!isMounted) return;
+          setAllLaptops(mod.default);
+          setFilteredLaptops(mod.default);
+        });
+      })
+      .finally(() => {
+        if (isMounted) setLoading(false);
+      });
+
+    return () => { isMounted = false };
+    // Only refetch if user or preferences change
+    // eslint-disable-next-line
+  }, [user, memoizedPreferences]);
+
+  // Fetch saved laptops for this user
+  useEffect(() => {
+    if (!user || !user.token) {
+      setSavedLaptops([]);
+      return;
+    }
+    setLoadingSaved(true);
+    axios.get('http://localhost:5000/api/saved-laptops', {
+      headers: {
+        Authorization: `Bearer ${user.token}`,
+      },
+      withCredentials: true,
+    })
+      .then((res) => setSavedLaptops(res.data))
+      .catch(() => setSavedLaptops([]))
+      .finally(() => setLoadingSaved(false));
+  }, [user, justSaved]); // Refresh when user or new save
+
+  // Auto-save after login (if redirected after save attempt)
+  useEffect(() => {
+    if (user && initialLoad.current) {
+      const intent = sessionStorage.getItem('saveIntent');
+      if (intent) {
+        const { laptop, userPreferences } = JSON.parse(intent);
+        handleSave(laptop, userPreferences, true);
+        sessionStorage.removeItem('saveIntent');
+      }
+      initialLoad.current = false;
+    }
+    // eslint-disable-next-line
+  }, [user]);
+
+  // Save to account (User's profile)
+  const handleSave = async (laptop) => {
+    if (!user || !user.token) {
+      sessionStorage.setItem(
+        'saveIntent',
+        JSON.stringify({ laptop, userPreferences: memoizedPreferences })
+      );
+      toast.info('Please login to save laptops.');
+      navigate('/login', { state: { redirectTo: '/recommended-laptops' } });
+      return;
+    }
+    try {
+      setSavingId(laptop._id || laptop.name);
+  
+      await axios.post(
+        'http://localhost:5000/api/saved-laptops',
+        {
+          laptop: {
+            name: laptop.name,
+            specs: laptop.specs,
+            price: laptop.price,
+            image: laptop.image,
+            storeLink: laptop.storeLink,
+            reason: laptop.reason,
+          },
+          preferences: memoizedPreferences,
+          preferencesSource: memoizedPreferences.inputText
+            ? 'text'
+            : memoizedPreferences.advanced
+            ? 'advanced'
+            : 'basic',
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${user.token}`,
+          },
+          withCredentials: true,
+        }
+      );
+      toast.success('Saved to your account');
+      setJustSaved(laptop._id || laptop.name);
+    } catch (err) {
+      toast.error('❌ Failed to save laptop.');
+      console.error(err.response?.data || err.message);
+    } finally {
+      setSavingId(null);
+    }
+  };
+  
+
+  // Pagination logic
+  const lastIdx = currentPage * laptopsPerPage;
+  const firstIdx = lastIdx - laptopsPerPage;
+  const current = filteredLaptops.slice(firstIdx, lastIdx);
+
+  return (
+    <div className={styles.recommendedLaptopsContainer}>
+      <div className={styles.headerSection}>
+        <button
+          onClick={() => navigate(-1)}
+          className={styles.backButton}
+          aria-label="Go back to previous page"
+        >
+          ⬅ Back
+        </button>
+        <h1 className={styles.pageTitle}>Recommended Laptops</h1>
+        {user && (
+          <div className={styles.loggedInMsg}>
+            Logged in as <b>{user.name || user.email}</b>
+          </div>
+        )}
+      </div>
+
+      {/* --- User's Saved Laptops --- */}
+      {user && (
+        <section className={styles.savedSection}>
+          <h2>Your Saved Laptops</h2>
+          {loadingSaved ? (
+            <div className={styles.loadingIndicator}>Loading your saved laptops…</div>
+          ) : savedLaptops.length === 0 ? (
+            <div className={styles.emptyMsg}>No laptops saved yet.</div>
+          ) : (
+            <div className={styles.savedGrid}>
+              {savedLaptops.map((item, idx) => (
+                <LaptopCard
+                  key={item._id || idx}
+                  data={item.laptop}
+                />
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+
+      <PreferencesSummary preferences={memoizedPreferences} />
+      <FilterBar />
+
+      {/* ───── Laptop Grid ───── */}
+      {loading ? (
+        <div className={styles.loadingIndicator} aria-live="polite">
+          Loading…
+        </div>
+      ) : (
+        <div className={styles.gridWrapper}>
+          <div className={styles.laptopGrid}>
+            {current.length > 0 ? (
+              current.map((lap, idx) => (
+                <div
+                  key={lap._id || lap.name || idx}
+                  className={styles.cardCell}
+                >
+                  {/* Only pass expected fields to LaptopCard */}
+                  <LaptopCard
+                    data={{
+                      name: lap.name,
+                      specs: lap.specs,
+                      price: lap.price,
+                      image: lap.image,
+                      storeLink: lap.storeLink,
+                      reason: lap.reason,
+                    }}
+                  />
+
+                  <button
+                    onClick={() => handleSave(lap)}
+                    className={styles.saveButton}
+                    disabled={savingId === (lap._id || lap.name)}
+                    aria-label={
+                      justSaved === (lap._id || lap.name)
+                        ? 'Laptop saved'
+                        : savingId === (lap._id || lap.name)
+                        ? 'Saving laptop…'
+                        : 'Save this laptop'
+                    }
+                  >
+                    {savingId === (lap._id || lap.name)
+                      ? 'Saving…'
+                      : justSaved === (lap._id || lap.name)
+                      ? '✔️ Saved'
+                      : '💾 Save'}
+                  </button>
+                  {justSaved === (lap._id || lap.name) && (
+                    <span className={styles.saveFeedback} role="status">
+                      Saved!
+                    </span>
+                  )}
+                </div>
+              ))
+            ) : (
+              <p>No laptops to display.</p>
+            )}
+          </div>
+        </div>
+      )}
+
+      <Pagination
+        currentPage={currentPage}
+        totalPages={Math.ceil(filteredLaptops.length / laptopsPerPage)}
+        onPageChange={setCurrentPage}
+      />
+      <ReAskBox
+        value={inputText}
+        onChange={(e) => setInputText(e.target.value)}
+        onSubmit={() =>
+          navigate('/laptop-recommendation', { state: { inputText } })
+        }
+      />
+    </div>
+  );
+};
+
+export default RecommendedLaptops;
+
+
+================================================================================
+// File: C:\Users\Administrator\Desktop\laptopia\src\components\RecommendedLaptops.module.css
+================================================================================
+/* === Redesigned RecommendedLaptops.module.css with HCI improvements === */
+
+.recommendedLaptopsContainer {
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 2rem 4rem;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background-color: #f9f9f9;
+  animation: fadeIn 0.5s ease-out forwards;
+  box-sizing: border-box;
+}
+
+.headerSection {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 2rem;
+}
+
+.pageTitle {
+  font-size: 2.5rem;
+  font-weight: bold;
+  color: #333;
+  text-align: center;
+  flex-grow: 1;
+}
+
+.backButton {
+  padding: 0.5rem 1rem;
+  background-color: #e0e0e0;
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  font-size: 1.2rem;
+  color: #111;
+  transition: background-color 0.3s ease;
+}
+
+.backButton:hover {
+  background-color: #c5c5c5;
+}
+
+.loadingIndicator {
+  text-align: center;
+  font-size: 1.5rem;
+  color: #333;
+  margin-top: 2rem;
+}
+
+.laptopGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 2rem;
+  margin-bottom: 2rem;
+}
+
+.cardWrapper {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 420px;
+  background-color: #ffffff;
+  border-radius: 0.75rem;
+  overflow: hidden;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.1);
+  padding: 1rem;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.cardWrapper:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+}
+
+.cardWrapper img {
+  width: 100%;
+  height: 180px;
+  object-fit: cover;
+  border-radius: 0.5rem;
+}
+
+.cardWrapper .laptopInfo {
+  margin-top: 1rem;
+  flex-grow: 1;
+}
+
+.cardWrapper .laptopInfo h3 {
+  font-size: 1.25rem;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 0.5rem;
+}
+
+.cardWrapper .laptopInfo p {
+  font-size: 1rem;
+  color: #666;
+  line-height: 1.4;
+}
+
+.cardWrapper .price {
+  font-size: 1.2rem;
+  color: #e74c3c;
+  font-weight: bold;
+  margin-top: 0.75rem;
+}
+
+.saveButton {
+  background-color: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  font-size: 1rem;
+  padding: 0.75rem 1.5rem;
+  cursor: pointer;
+  width: 100%;
+  margin-top: auto;
+  transition: background 0.3s ease, transform 0.2s ease;
+}
+
+.saveButton:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+.saveButton:hover:not(:disabled) {
+  background-color: #2563eb;
+  transform: scale(1.05);
+}
+
+.saveFeedback {
+  position: absolute;
+  bottom: 1rem;
+  right: 1rem;
+  font-size: 0.9rem;
+  color: green;
+  font-weight: 600;
+}
+
+.pagination {
+  display: flex;
+  justify-content: center;
+  margin-top: 2rem;
+}
+
+.pagination button {
+  padding: 0.5rem 1rem;
+  margin: 0 0.5rem;
+  background-color: #e0e0e0;
+  border: none;
+  border-radius: 0.5rem;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.3s ease, transform 0.2s ease;
+}
+
+.pagination button:hover {
+  background-color: #c5c5c5;
+  transform: scale(1.1);
+}
+
+.reAskSection {
+  margin-top: 2rem;
+  text-align: center;
+}
+
+.reAskSection textarea {
+  width: 100%;
+  max-width: 600px;
+  min-height: 80px;
+  padding: 1rem;
+  font-size: 1rem;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.5rem;
+  resize: vertical;
+}
+
+.reAskSection button {
+  margin-top: 1rem;
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+  background-color: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+.reAskSection button:hover {
+  background-color: #2563eb;
+}
+
+@media (max-width: 768px) {
+  .recommendedLaptopsContainer {
+    padding: 1rem;
+  }
+  .headerSection {
+    flex-direction: column;
+    gap: 1rem;
+  }
+  .pageTitle {
+    font-size: 1.8rem;
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.12); }
+  100% { transform: scale(1); }
+}
+
+/* break out of the 1200-px wrapper and let the grid span full viewport */
+.gridWrapper {
+  width: 100vw;               /* take full viewport width  */
+  position: relative;
+  left: 50%;
+  right: 50%;
+  margin-left: -50vw;         /* pull left edge to viewport */
+  margin-right: -50vw;        /* pull right edge to viewport */
+}
+
+/* grid cell – just for clarity; inherit existing card styles */
+.cardCell {
+  display: flex;
+  flex-direction: column;
+}
+/* src/components/RecommendedLaptops.module.css */
+.savedSection {
+  margin: 2rem 0 2rem 0;
+  padding: 1rem 1rem 1.5rem 1rem;
+  background: #f6f8fa;
+  border-radius: 1rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+}
+.savedSection h2 {
+  margin-bottom: 1rem;
+  font-size: 1.15rem;
+  color: #1a2947;
+  font-weight: 600;
+}
+.savedGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 1.2rem;
+}
+.emptyMsg {
+  font-style: italic;
+  color: #888;
+  padding: 1rem 0;
+}
+
+
+================================================================================
+// File: C:\Users\Administrator\Desktop\laptopia\src\components\SavedLaptops.jsx
+================================================================================
+import React, { useEffect, useState } from 'react';
+import axios from 'axios';
+import styles from './SavedLaptops.module.css';
+
+const SavedLaptops = () => {
+  const [laptops, setLaptops] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchSavedLaptops = async () => {
+      try {
+        const res = await axios.get('http://localhost:5000/api/laptops');
+        setLaptops(res.data);
+      } catch (err) {
+        console.error('Failed to fetch saved laptops:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchSavedLaptops();
+  }, []);
+
+  return (
+    <div className={styles.savedContainer}>
+      <h1 className={styles.heading}>💾 Saved Laptops</h1>
+      {loading ? (
+        <p>Loading...</p>
+      ) : laptops.length === 0 ? (
+        <p>No laptops saved yet.</p>
+      ) : (
+        <div className={styles.laptopList}>
+          {laptops.map((laptop, idx) => (
+            <div key={idx} className={styles.laptopCard}>
+              <img src={laptop.image} alt={laptop.name} />
+              <h3>{laptop.name}</h3>
+              <p>{laptop.specs}</p>
+              <p><strong>{laptop.price}</strong></p>
+              <a href={laptop.storeLink} target="_blank" rel="noopener noreferrer">🔗 View Store</a>
+              <p className={styles.reason}>🧠 {laptop.reason}</p>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default SavedLaptops;
+
+
+================================================================================
+// File: C:\Users\Administrator\Desktop\laptopia\src\components\SavedLaptops.module.css
+================================================================================
+.savedContainer {
+    max-width: 1000px;
+    margin: auto;
+    padding: 2rem;
+  }
+  
+  .heading {
+    font-size: 2rem;
+    margin-bottom: 2rem;
+    color: #1d4ed8;
+    text-align: center;
+  }
+  
+  .laptopList {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 1.5rem;
+  }
+  
+  .laptopCard {
+    background-color: #f9fafb;
+    padding: 1rem;
+    border-radius: 0.5rem;
+    border: 1px solid #d1d5db;
+    text-align: center;
+  }
+  
+  .laptopCard img {
+    width: 100%;
+    height: 160px;
+    object-fit: cover;
+    border-radius: 0.5rem;
+    margin-bottom: 1rem;
+  }
+  
+  .laptopCard a {
+    display: inline-block;
+    margin-top: 0.5rem;
+    color: #2563eb;
+    text-decoration: none;
+    font-weight: 500;
+  }
+  
+  .reason {
+    margin-top: 0.5rem;
+    font-size: 0.875rem;
+    color: #374151;
+  }
+  
+
+================================================================================
+// File: C:\Users\Administrator\Desktop\laptopia\src\context\AuthContext.jsx
+================================================================================
+// src/context/AuthContext.js
+import React, { createContext, useContext, useState, useEffect } from "react";
+
+// Create AuthContext
+export const AuthContext = createContext();
+
+// AuthProvider component
+export const AuthProvider = ({ children }) => {
+  const [user, setUser] = useState(null);
+
+  // Restore user from localStorage on mount
+  useEffect(() => {
+    const stored = localStorage.getItem("user");
+    if (stored) setUser(JSON.parse(stored));
+  }, []);
+
+  // Login: expects an object with { _id, name, email, token }
+  const login = (userObj) => {
+    setUser(userObj);
+    localStorage.setItem("user", JSON.stringify(userObj));
+  };
+
+  // Logout: clears user and storage
+  const logout = () => {
+    setUser(null);
+    localStorage.removeItem("user");
+  };
+
+  return (
+    <AuthContext.Provider value={{ user, login, logout }}>
+      {children}
+    </AuthContext.Provider>
+  );
+};
+
+// Custom hook for consuming context
+export const useAuth = () => useContext(AuthContext);
+
+
+================================================================================
+// File: C:\Users\Administrator\Desktop\laptopia\src\context\SelectedComponentsContext.js
+================================================================================
+import React, { createContext } from 'react';
+
+export const SelectedComponentsContext = createContext();
+
+================================================================================
+// File: C:\Users\Administrator\Desktop\laptopia\src\context\SelectedComponentsProvider.jsx
+================================================================================
+import React, { useState } from 'react';
+import { SelectedComponentsContext } from './SelectedComponentsContext';
+
+export const SelectedComponentsProvider = ({ children }) => {
+  const [selectedComponents, setSelectedComponents] = useState([]);
+
+  return (
+    <SelectedComponentsContext.Provider value={{ selectedComponents, setSelectedComponents }}>
+      {children}
+    </SelectedComponentsContext.Provider>
+  );
+};

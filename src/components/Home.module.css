@@ -1,0 +1,242 @@
+/* src/components/Home.module.css */
+
+/* General styles */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background-color: #f8fafc;
+  color: #1e3a8a;
+}
+
+/* Hero Section */
+.hero {
+  position: relative;
+  text-align: center;
+  margin-bottom: 1rem;
+  padding: 1rem 2rem 0.5rem;
+  background: linear-gradient(135deg, #0f172a, #1e3a8a);
+  border-radius: 1rem;
+  color: white;
+  overflow: hidden;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+.hero::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(circle at 75% 30%, rgba(59, 130, 246, 0.2) 0%, transparent 50%);
+  z-index: 1;
+}
+
+.hero::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgdmlld0JveD0iMCAwIDYwIDYwIj48cmVjdCB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIGZpbGw9Im5vbmUiLz48ZyBmaWxsPSJ1cmwoI2EpIiBmaWxsLW9wYWNpdHk9IjAuMSI+PHBhdGggZD0iTTAgMGg2MHY2MEgweiIvPjwvZz48ZGVmcz48cmFkaWFsR3JhZGllbnQgaWQ9ImEiIGN4PSIwIiBjeT0iMCIgcj0iMSIgZ3JhZGllbnRVbml0cz0idXNlclNwYWNlT25Vc2UiIGdyYWRpZW50VHJhbnNmb3JtPSJzY2FsZSg2MCkiPjxzdG9wIG9mZnNldD0iMCIgc3RvcC1jb2xvcj0iIzAwMCIvPjxzdG9wIG9mZnNldD0iMSIgc3RvcC1jb2xvcj0iI2ZmZiIvPjwvcmFkaWFsR3JhZGllbnQ+PC9kZWZzPjwvc3ZnPg==');
+  opacity: 0.1;
+  z-index: 1;
+}
+
+.heroContent {
+  position: relative;
+  z-index: 2;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.heroTitle {
+  font-size: 2.5rem;
+  margin-bottom: 0.5rem;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+}
+
+.heroSubtitle {
+  font-size: 1rem;
+  opacity: 0.9;
+  max-width: 600px;
+  margin: 0 auto;
+  line-height: 1.6;
+}
+
+/* Featured Sections */
+.featuredSections {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2rem;
+  padding: 2rem;
+}
+
+.laptopRecommendation,
+.customPcBuilder {
+  flex: 1 1 calc(50% - 1rem);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  background: white;
+  border-radius: 0.5rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  padding: 1rem;
+}
+
+@media (max-width: 768px) {
+  .featuredSections {
+    flex-direction: column;
+  }
+
+  .laptopRecommendation,
+  .customPcBuilder {
+    flex: 1 1 100%;
+  }
+}
+
+/* Latest Models Section */
+.latestModelsSection {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+  text-align: center;
+}
+
+.latestModelsSection h2 {
+  font-size: 2rem;
+  margin-bottom: 1rem;
+}
+
+.laptopGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 2rem;
+}
+
+.laptopCard {
+  background: white;
+  border-radius: 1rem;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+  text-align: left;
+  transition: all 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  border: 1px solid #e5e7eb;
+}
+
+.laptopCard:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+}
+.laptopImage {
+  width: 100%;
+  height: 180px;
+  object-fit: cover;
+  border-top-left-radius: 1rem;
+  border-top-right-radius: 1rem;
+}
+
+.laptopName {
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin: 1rem 1rem 0.5rem;
+  color: #1e3a8a;
+}
+
+.laptopSpecs {
+  font-size: 0.95rem;
+  margin: 0 1rem 1rem;
+  color: #4b5563;
+  line-height: 1.4;
+}
+
+.readMoreButton {
+  margin: auto 1rem 1rem;
+  padding: 0.5rem 1rem;
+  background: linear-gradient(90deg, #3b82f6, #6366f1);
+  color: white;
+  font-weight: 500;
+  border: none;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-align: center;
+  text-decoration: none;
+}
+
+.readMoreButton:hover {
+  background: linear-gradient(90deg, #2563eb, #7c3aed);
+  transform: scale(1.05);
+}
+
+/* Company Filters */
+.companyFilters {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  padding: 0 1rem;
+}
+
+.filterButton {
+  padding: 0.5rem 1rem;
+  background-color: #f8fafc;
+  border: 1px solid #3b82f6;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: background-color 0.3s ease, border-color 0.3s ease;
+  flex: 0 1 auto;
+  text-align: center;
+}
+
+.filterButton:hover,
+.filterButton.activeFilter {
+  background-color: #3b82f6;
+  border-color: #2563eb;
+  color: white;
+}
+
+.pagination {
+  display: flex;
+  justify-content: center;
+  margin-top: 2rem;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.pageButton {
+  padding: 0.5rem 1rem;
+  border: 1px solid #3b82f6;
+  border-radius: 0.5rem;
+  background-color: white;
+  color: #1e3a8a;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.pageButton:hover {
+  background-color: #3b82f6;
+  color: white;
+}
+
+.pageButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.activePage {
+  background-color: #3b82f6;
+  color: white;
+}

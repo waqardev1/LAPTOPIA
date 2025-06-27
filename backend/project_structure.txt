@@ -1,0 +1,26 @@
+📁 backend
+📄 .env
+📄 .eslintrc
+📄 .eslintrc.json
+📁 controllers
+│   📄 recommendationLogController.js
+│   📄 savedLaptopController.js
+📄 index.js
+📁 middleware
+│   📄 auth.js
+│   📄 authMiddleware.js
+📁 models
+│   📄 Laptop.js
+│   📄 RecommendationLog.js
+│   📄 Savedlaptops.js
+│   📄 User.js
+📁 node_modules
+📄 package-lock.json
+📄 package.json
+📄 project_code.txt
+📄 project_structure.txt
+📁 routes
+│   📄 auth.js
+│   📄 laptops.js
+│   📄 recommendations.js
+│   📄 savedLaptops.js

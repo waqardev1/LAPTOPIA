@@ -1,0 +1,236 @@
+📁 laptopia
+📄 .gitignore
+📁 .vscode
+📄 README.md
+📁 backend
+│   📄 .env
+│   📄 .eslintrc
+│   📄 .eslintrc.json
+│   📁 controllers
+│   │   📄 recommendationLogController.js
+│   │   📄 savedLaptopController.js
+│   📄 index.js
+│   📁 middleware
+│   │   📄 auth.js
+│   │   📄 authMiddleware.js
+│   📁 models
+│   │   📄 Laptop.js
+│   │   📄 RecommendationLog.js
+│   │   📄 SavedLaptop.js
+│   │   📄 User.js
+│   📁 node_modules
+│   📄 package-lock.json
+│   📄 package.json
+│   📄 project_code.txt
+│   📄 project_structure.txt
+│   📁 routes
+│   │   📄 auth.js
+│   │   📄 laptops.js
+│   │   📄 recommendations.js
+│   │   📄 savedLaptops.js
+📄 eslint.config.js
+📁 hci_workflows
+│   📄 about_01_page_loaded.png
+│   📄 about_02_after_fill_inputs.png
+│   📄 about_03_after_click_buttons.png
+│   📄 about_04_after_click_first_link.png
+│   📄 builtpcsummary_01_page_loaded.png
+│   📄 builtpcsummary_02_after_fill_inputs.png
+│   📄 builtpcsummary_03_after_click_buttons.png
+│   📄 builtpcsummary_04_after_click_first_link.png
+│   📄 componentselection_01_page_loaded.png
+│   📄 componentselection_02_after_fill_inputs.png
+│   📄 componentselection_03_after_click_buttons.png
+│   📄 componentselection_04_after_click_first_link.png
+│   📄 createaccount_01_page_loaded.png
+│   📄 createaccount_02_after_fill_inputs.png
+│   📄 createaccount_03_after_click_buttons.png
+│   📄 createaccount_04_after_click_first_link.png
+│   📄 custompc_01_page_loaded.png
+│   📄 custompc_02_after_fill_inputs.png
+│   📄 custompc_03_after_click_buttons.png
+│   📄 custompc_04_after_click_first_link.png
+│   📄 custompcbuilder_01_page_loaded.png
+│   📄 custompcbuilder_02_after_fill_inputs.png
+│   📄 custompcbuilder_03_after_click_buttons.png
+│   📄 custompcbuilder_04_after_click_first_link.png
+│   📄 filterbar_01_page_loaded.png
+│   📄 filterbar_02_after_fill_inputs.png
+│   📄 filterbar_03_after_click_buttons.png
+│   📄 filterbar_04_after_click_first_link.png
+│   📄 filterssection_01_page_loaded.png
+│   📄 filterssection_02_after_fill_inputs.png
+│   📄 filterssection_03_after_click_buttons.png
+│   📄 filterssection_04_after_click_first_link.png
+│   📄 footer_01_page_loaded.png
+│   📄 footer_02_after_fill_inputs.png
+│   📄 footer_03_after_click_buttons.png
+│   📄 footer_04_after_click_first_link.png
+│   📄 header_01_page_loaded.png
+│   📄 header_02_after_fill_inputs.png
+│   📄 header_03_after_click_buttons.png
+│   📄 header_04_after_click_first_link.png
+│   📄 home_01_page_loaded.png
+│   📄 home_02_after_fill_inputs.png
+│   📄 home_03_after_click_buttons.png
+│   📄 home_04_after_click_first_link.png
+│   📄 laptopcard_01_page_loaded.png
+│   📄 laptopcard_02_after_fill_inputs.png
+│   📄 laptopcard_03_after_click_buttons.png
+│   📄 laptopcard_04_after_click_first_link.png
+│   📄 laptopdetails_01_page_loaded.png
+│   📄 laptopdetails_02_after_fill_inputs.png
+│   📄 laptopdetails_03_after_click_buttons.png
+│   📄 laptopdetails_04_after_click_first_link.png
+│   📄 laptoprecommendation_01_page_loaded.png
+│   📄 laptoprecommendation_02_after_fill_inputs.png
+│   📄 laptoprecommendation_03_after_click_buttons.png
+│   📄 laptoprecommendation_04_after_click_first_link.png
+│   📄 laptoprecommendations_01_page_loaded.png
+│   📄 laptoprecommendations_02_after_fill_inputs.png
+│   📄 laptoprecommendations_03_after_click_buttons.png
+│   📄 laptoprecommendations_04_after_click_first_link.png
+│   📄 latestmodels_01_page_loaded.png
+│   📄 latestmodels_02_after_fill_inputs.png
+│   📄 latestmodels_03_after_click_buttons.png
+│   📄 latestmodels_04_after_click_first_link.png
+📁 hci_workflows_advanced
+│   📄 saved_laptops_01_saved_laptops_list.png
+📄 index.html
+📁 node_modules
+📄 package-lock.json
+📄 package.json
+📄 project_code.txt
+📄 project_structure.txt
+📁 public
+│   📁 data
+│   │   📄 cpus.json
+│   📁 images
+│   │   📁 Dell XPS 13
+│   │   │   📄 notebook-xps-13-9345-t-gray-gallery-10.avif
+│   │   │   📄 notebook-xps-13-9345-t-gray-gallery-2.avif
+│   │   │   📄 notebook-xps-13-9345-t-gray-gallery-4.avif
+│   │   │   📄 notebook-xps-13-9345-t-gray-gallery-5.avif
+│   │   │   📄 notebook-xps-13-9345-t-gray-gallery-6.avif
+│   │   │   📄 notebook-xps-13-9345-t-gray-gallery-8.avif
+│   │   │   📄 notebook-xps-13-9345-t-gray-gallery-9.avif
+│   │   │   📄 notebook-xps-13-9345-t-oled-gray-gallery-7.avif
+│   │   📁 HP Spectre x360
+│   │   │   📄 c08799141.png
+│   │   │   📄 c08799261.png
+│   │   │   📄 c08799291.png
+│   │   │   📄 c08799381.png
+│   │   │   📄 c08799411.png
+│   │   │   📄 c08848605.png
+│   │   │   📄 c08848635.png
+│   │   │   📄 c08881382.png
+│   │   📁 Lenovo ThinkPad X1 Carbon
+│   │   │   📄 3euk5fn03von01bjlreh1bmgmzp3kf055467.avif
+│   │   │   📄 4p59jqmnoqmit0cwp5ao91fjamsdfc178826.avif
+│   │   │   📄 5mhub4f51vr9976w9di6bjkhtkb6qa586973.avif
+│   │   │   📄 5mxoj7f098sof1ixxc9mekzc0fkhb6446464.avif
+│   │   │   📄 6vqjiceenchqp8t3nn2fakjorw1skx301104.avif
+│   │   │   📄 824outjlb1vwhymezzbyth15tqw9t4568668.avif
+│   │   │   📄 8xn3wzyvzeufst9v7vkjte5j32301c420589.avif
+│   │   │   📄 hp3vsnf1lspprf4uu5emo86jryetzn404454.avif
+│   │   │   📄 jv7obckd3phlzcahhnkvbrcwqse1h7795635.webp
+│   │   │   📄 rvbhau55uy5dab4vpwhml34zvtaljb998941.avif
+│   │   │   📄 tvt3dpjdr8g0uzv2woasi728x1ulj3654973.avif
+│   │   │   📄 umcrxcnsm2br1itju6gvundeb9s6tf364734.avif
+│   │   │   📄 x1308g4oo9wtb5k2t37dfj3wbo9lc4692198.avif
+│   │   📄 gamingPc.jpg
+│   │   📄 laptop.jpg
+📁 screenshots
+│   📄 about.png
+│   📄 builtpcsummary.png
+│   📄 componentselection.png
+│   📄 createaccount.png
+│   📄 custompc.png
+│   📄 custompcbuilder.png
+│   📄 filterbar.png
+│   📄 filterssection.png
+│   📄 footer.png
+│   📄 header.png
+│   📄 home.png
+│   📄 laptopcard.png
+│   📄 laptopdetails.png
+│   📄 laptoprecommendation.png
+│   📄 laptoprecommendations.png
+│   📄 latestmodels.png
+│   📄 latestmodelspage.png
+│   📄 loginpage.png
+│   📄 pagination.png
+│   📄 preferencessummary.png
+│   📄 reaskbox.png
+│   📄 recommendedlaptops.png
+│   📄 savedlaptops.png
+📁 src
+│   📄 App.jsx
+│   📄 App.module.css
+│   📁 assets
+│   │   📁 CPU
+│   │   │   📁 AMD
+│   │   │   │   📄 Processor Specifications (2).csv
+│   │   │   │   📄 Processor Specifications 3.csv
+│   │   │   │   📄 Processor Specifications.csv
+│   │   │   │   📄 Server Processor Specifications (1).csv
+│   │   │   │   📄 Server Processor Specifications (2).csv
+│   │   📁 GPU
+│   │   │   📄 Professional Graphics Specifications.csv
+│   │   📄 readme
+│   📁 components
+│   │   📄 About.jsx
+│   │   📄 About.module.css
+│   │   📄 BuiltPcSummary.jsx
+│   │   📄 BuiltPcSummary.module.css
+│   │   📄 ComponentSelection.jsx
+│   │   📄 ComponentSelection.module.css
+│   │   📄 CreateAccount.jsx
+│   │   📄 CreateAccount.module.css
+│   │   📄 CustomPc.jsx
+│   │   📄 CustomPc.module.css
+│   │   📄 CustomPcBuilder.jsx
+│   │   📄 CustomPcBuilder.module.css
+│   │   📄 FilterBar.jsx
+│   │   📄 FilterBar.module.css
+│   │   📄 FiltersSection.jsx
+│   │   📄 FiltersSection.module.css
+│   │   📄 Footer.jsx
+│   │   📄 Footer.module.css
+│   │   📄 Header.jsx
+│   │   📄 Header.module.css
+│   │   📄 Home.jsx
+│   │   📄 Home.module.css
+│   │   📄 LaptopCard.jsx
+│   │   📄 LaptopCard.module.css
+│   │   📄 LaptopDetails.jsx
+│   │   📄 LaptopDetails.module.css
+│   │   📄 LaptopRecommendation.jsx
+│   │   📄 LaptopRecommendation.module.css
+│   │   📄 LaptopRecommendations.jsx
+│   │   📄 LaptopRecommendations.module.css
+│   │   📄 LatestModels.jsx
+│   │   📄 LatestModels.module.css
+│   │   📄 LatestModelsPage.jsx
+│   │   📄 LatestModelsPage.module.css
+│   │   📄 LoginPage.jsx
+│   │   📄 LoginPage.module.css
+│   │   📄 Pages.module.css
+│   │   📄 Pagination.jsx
+│   │   📄 Pagination.module.css
+│   │   📄 PreferencesSummary.jsx
+│   │   📄 PreferencesSummary.module.css
+│   │   📄 ReAskBox.jsx
+│   │   📄 ReAskBox.module.css
+│   │   📄 RecommendedLaptops.jsx
+│   │   📄 RecommendedLaptops.module.css
+│   │   📄 SavedLaptops.jsx
+│   │   📄 SavedLaptops.module.css
+│   │   📄 laptops.json
+│   │   📄 latestLaptops.json
+│   📁 context
+│   │   📄 AuthContext.jsx
+│   │   📄 SelectedComponentsContext.js
+│   │   📄 SelectedComponentsProvider.jsx
+│   📄 main.jsx
+📄 vite.config.js

@@ -1,0 +1,77 @@
+[
+    {
+      "id": 1,
+      "name": "Dell XPS 13",
+      "image": "../../public/images/Dell XPS 13/notebook-xps-13-9345-t-gray-gallery-10.avif",
+      "specs": "Intel Core i7, 16GB RAM, 512GB SSD",
+      "company": "Dell",
+      "details": {
+        "description": "The Dell XPS 13 is a high-performance ultrabook with a sleek design.",
+        "images": [
+          "../../public/images/Dell XPS 13/notebook-xps-13-9345-t-gray-gallery-2.avif",
+          "../../public/images/Dell XPS 13/notebook-xps-13-9345-t-gray-gallery-5.avif"
+        ],
+        "buyLink": "https://www.dell.com/xps13"
+      }
+    },
+    {
+      "id": 2,
+      "name": "Dell Inspiron 15",
+      "image": "../../public/images/Dell Inspiron 15/inspiron-15-3525-gallery-1.avif",
+      "specs": "AMD Ryzen 5, 8GB RAM, 256GB SSD",
+      "company": "Dell",
+      "details": {
+        "description": "Affordable everyday laptop with solid performance.",
+        "images": [
+          "../../public/images/Dell Inspiron 15/inspiron-15-3525-gallery-2.avif",
+          "../../public/images/Dell Inspiron 15/inspiron-15-3525-gallery-3.avif"
+        ],
+        "buyLink": "https://www.dell.com/inspiron15"
+      }
+    },
+    {
+      "id": 3,
+      "name": "Dell Alienware m15",
+      "image": "../../public/images/Dell Alienware m15/alienware-m15-r7-gallery-1.avif",
+      "specs": "Intel Core i9, 32GB RAM, 1TB SSD, RTX 3080",
+      "company": "Dell",
+      "details": {
+        "description": "Powerful gaming laptop with premium features.",
+        "images": [
+          "../../public/images/Dell Alienware m15/alienware-m15-r7-gallery-2.avif",
+          "../../public/images/Dell Alienware m15/alienware-m15-r7-gallery-3.avif"
+        ],
+        "buyLink": "https://www.dell.com/alienwarem15"
+      }
+    },
+    {
+      "id": 4,
+      "name": "Dell Latitude 7420",
+      "image": "../../public/images/Dell Latitude 7420/latitude-14-7420-gallery-1.avif",
+      "specs": "Intel Core i5, 16GB RAM, 512GB SSD",
+      "company": "Dell",
+      "details": {
+        "description": "Business laptop with enterprise-grade security.",
+        "images": [
+          "../../public/images/Dell Latitude 7420/latitude-14-7420-gallery-2.avif",
+          "../../public/images/Dell Latitude 7420/latitude-14-7420-gallery-3.avif"
+        ],
+        "buyLink": "https://www.dell.com/latitude7420"
+      }
+    },
+    {
+      "id": 5,
+      "name": "Dell G15 Gaming",
+      "image": "../../public/images/Dell G15 Gaming/g-series-15-5515-gallery-1.avif",
+      "specs": "AMD Ryzen 7, 16GB RAM, 512GB SSD, RTX 3060",
+      "company": "Dell",
+      "details": {
+        "description": "Budget-friendly gaming laptop with great performance.",
+        "images": [
+          "../../public/images/Dell G15 Gaming/g-series-15-5515-gallery-2.avif",
+          "../../public/images/Dell G15 Gaming/g-series-15-5515-gallery-3.avif"
+        ],
+        "buyLink": "https://www.dell.com/g15"
+      }
+    }
+  ]

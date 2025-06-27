@@ -1,0 +1,16 @@
+[
+  {
+    "id": 1,
+    "name": "Intel Core i9-12900K",
+    "price": 599,
+    "details": "16 Cores, 24 Threads, 5.2 GHz",
+    "performanceIndicators": ["High performance", "Ideal for gaming and professional use"]
+  },
+  {
+    "id": 2,
+    "name": "AMD Ryzen 9 5950X",
+    "price": 799,
+    "details": "16 Cores, 32 Threads, 4.9 GHz",
+    "performanceIndicators": ["High performance", "Ideal for multitasking and heavy workloads"]
+  }
+]
