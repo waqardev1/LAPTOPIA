@@ -21,6 +21,8 @@ import operatingSystemRoutes from './routes/operatingSystems.js';
 import monitorRoutes from './routes/monitors.js';
 import videoCardRoutes from './routes/videoCards.js';
 import geminiRouter from './routes/gemini.js';
+import imageRecommendationRoutes from './routes/imageRecommendation.js';
+
 
 const app = express();
 const PORT1 =5000
@@ -36,6 +38,7 @@ app.use(cors({
 // Body parsing middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use('/api/image-recommendation', imageRecommendationRoutes);
 
 // Register routes
 app.use('/api/gemini', geminiRouter);

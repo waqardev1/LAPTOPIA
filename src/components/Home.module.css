@@ -240,3 +240,63 @@ body {
   background-color: #3b82f6;
   color: white;
 }
+.featuredSectionsRow {
+  display: flex;
+  gap: 2rem;
+  align-items: flex-start;
+}
+
+.laptopRecommendationColumn {
+  flex: 2 1 0%;
+  min-width: 350px;
+}
+
+.rightColumn {
+  flex: 1 1 0%;
+  min-width: 280px;
+  display: flex;
+  flex-direction: column;
+  gap: 1.2rem;
+}
+
+.imageLaptopRecommendationSection,
+.customPcBuilderSection {
+  width: 100%;
+}
+
+/* Main two-column featured area */
+.featuredSectionsRow {
+  display: flex;
+  gap: 2.5rem;            /* More gap between columns */
+  align-items: flex-start;
+  margin-bottom: 2.5rem;  /* Space below featured area */
+}
+
+.laptopRecommendationColumn {
+  flex: 2 1 0%;
+  min-width: 360px;
+  background: #fff;
+  border-radius: 18px;
+  padding: 2rem 1.8rem 2rem 2rem;
+  box-shadow: 0 6px 28px rgba(50,80,140,0.11);
+}
+
+.rightColumn {
+  flex: 1 1 0%;
+  min-width: 300px;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;                /* More space between right-panel cards */
+}
+
+/* Responsive: stack on mobile */
+@media (max-width: 900px) {
+  .featuredSectionsRow {
+    flex-direction: column;
+    gap: 1.6rem;
+  }
+  .laptopRecommendationColumn, .rightColumn {
+    min-width: 0;
+    padding: 1.1rem;
+  }
+}

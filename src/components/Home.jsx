@@ -6,8 +6,10 @@ import LaptopRecommendation from './LaptopRecommendation';
 import CustomPcBuilder from './CustomPcBuilder';
 import LatestModels from './LatestModels';
 import styles from './Home.module.css';
-import laptopData from './latestLaptops.json'; // Import latestLaptops.json
+import laptopData from './latestLaptops.json';
 import RecommendedLaptops from './RecommendedLaptops';
+import ImageLaptopRecommendation from './ImageLaptopRecommendation';
+
 function Home() {
   const [laptops, setLaptops] = useState([]);
   const [selectedCompany, setSelectedCompany] = useState(null);
@@ -23,7 +25,7 @@ function Home() {
 
   const handleCompanyClick = (company) => {
     setSelectedCompany(current => current === company ? null : company);
-    setCurrentPage(1); // reset to first page on filter change
+    setCurrentPage(1);
   };
 
   const filteredLaptops = selectedCompany
@@ -52,17 +54,27 @@ function Home() {
         </p>
       </div>
 
-      {/* Featured Sections */}
-      <div className={styles.featuredSections}>
-        <div className={styles.laptopRecommendation}><LaptopRecommendation /></div>
-        <div className={styles.customPcBuilder}><CustomPcBuilder /></div>
+      {/* Two-Column Featured Sections */}
+      <div className={styles.featuredSectionsRow}>
+        {/* Main Recommendation (left column) */}
+        <div className={styles.laptopRecommendationColumn}>
+          <LaptopRecommendation />
+        </div>
+
+        {/* Right column: Image-based Recommendation & Custom PC Builder */}
+        <div className={styles.rightColumn}>
+          <div className={styles.imageLaptopRecommendationSection}>
+            <ImageLaptopRecommendation />
+          </div>
+          <div className={styles.customPcBuilderSection}>
+            <CustomPcBuilder />
+          </div>
+        </div>
       </div>
 
       {/* Latest Models Section */}
       <div className={styles.latestModelsSection}>
         <h2 className={styles.sectionTitle}>Explore Latest Models</h2>
-
-        {/* Company Filters */}
         <div className={styles.companyFilters}>
           <button
             className={`${styles.filterButton} ${selectedCompany === null ? styles.activeFilter : ''}`}
@@ -80,8 +92,6 @@ function Home() {
             </button>
           ))}
         </div>
-
-        {/* Laptop Grid */}
         <div className={styles.laptopGrid}>
           {currentLaptops.map((laptop) => (
             <div key={laptop.indx} className={styles.laptopCard}>
@@ -98,8 +108,6 @@ function Home() {
             </div>
           ))}
         </div>
-
-        {/* Pagination Controls */}
         <div className={styles.pagination}>
           <button
             className={styles.pageButton}
@@ -129,6 +137,5 @@ function Home() {
     </div>
   );
 }
-
 
 export default Home;

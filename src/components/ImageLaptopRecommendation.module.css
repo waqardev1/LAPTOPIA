@@ -1,0 +1,176 @@
+/* src/components/ImageLaptopRecommendation.module.css */
+.container {
+    background: #f8faff;
+    border-radius: 18px;
+    box-shadow: 0 2px 14px rgba(40,60,140,0.05);
+    padding: 2.2rem 2rem 1.5rem 2rem;
+    margin-bottom: 2.3rem;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .form {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    width: 100%;
+  }
+  
+  .fileInput {
+    font-size: 1.08em;
+    border-radius: 8px;
+    padding: 0.6em;
+    border: 1px solid #e3e8ef;
+  }
+  
+  .previewBox {
+    margin-top: 0.8rem;
+    margin-bottom: 0.4rem;
+    width: 180px;
+    height: 120px;
+    overflow: hidden;
+    border-radius: 12px;
+    border: 1px solid #d7e0ea;
+  }
+  
+  .previewImg {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+  
+  .submitBtn {
+    background: #2563eb;
+    color: #fff;
+    font-weight: 600;
+    padding: 0.62em 1.8em;
+    border: none;
+    border-radius: 0.9em;
+    font-size: 1.08em;
+    cursor: pointer;
+    transition: background 0.22s;
+  }
+  .submitBtn:disabled {
+    background: #b5c5e4;
+    cursor: not-allowed;
+  }
+  
+  .resultBox {
+    margin-top: 1.2rem;
+    width: 100%;
+  }
+  .error {
+    color: #c41c00;
+    font-weight: 500;
+  }
+  .card {
+    background: #f9fbfe;
+    border-radius: 18px;
+    padding: 2rem 1.5rem 1.6rem 1.5rem;
+    box-shadow: 0 8px 36px rgba(90,120,180,0.10);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .title {
+    margin-bottom: 0.4em;
+    font-size: 1.22rem;
+    font-weight: 700;
+    color: #2754c0;
+    text-align: center;
+    letter-spacing: 0.02em;
+  }
+  
+  .description {
+    font-size: 1.01em;
+    color: #425068;
+    margin-bottom: 1.2em;
+    text-align: center;
+  }
+  
+  .form {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .uploadLabel {
+    margin-bottom: 1em;
+  }
+  
+  .uploadButton {
+    background: #3465eb;
+    color: #fff;
+    font-weight: 600;
+    padding: 0.65em 1.4em;
+    border-radius: 1.4em;
+    cursor: pointer;
+    font-size: 1em;
+    transition: background 0.2s;
+    border: none;
+    box-shadow: 0 2px 8px rgba(52, 101, 235, 0.08);
+  }
+  .uploadButton:hover {
+    background: #2348b8;
+  }
+  
+  .imagePreview {
+    margin-bottom: 1em;
+    margin-top: 0.4em;
+    display: flex;
+    justify-content: center;
+  }
+  .imagePreview img {
+    max-width: 160px;
+    max-height: 120px;
+    border-radius: 9px;
+    border: 1.5px solid #d2e2fd;
+    box-shadow: 0 2px 12px rgba(52,101,235,0.04);
+  }
+  
+  .recommendButton {
+    margin-top: 0.5em;
+    background: #2754c0;
+    color: #fff;
+    padding: 0.65em 2.2em;
+    border-radius: 1.4em;
+    font-weight: 600;
+    font-size: 1.05em;
+    border: none;
+    transition: background 0.2s;
+    cursor: pointer;
+  }
+  .recommendButton:disabled {
+    background: #b0c3e3;
+    cursor: not-allowed;
+  }
+  
+  .results {
+    margin-top: 1.5em;
+    background: #eef4ff;
+    border-radius: 1em;
+    padding: 1em 0.8em 0.8em 1em;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .results h3 {
+    font-size: 1.11em;
+    color: #246;
+    margin-bottom: 0.6em;
+  }
+  .results ul {
+    margin: 0;
+    padding: 0 0 0 1.3em;
+  }
+  .results li {
+    font-size: 0.99em;
+    margin-bottom: 0.7em;
+  }
+  .reason {
+    color: #5473a0;
+    font-size: 0.91em;
+  }
+    
