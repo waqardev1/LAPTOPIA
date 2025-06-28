@@ -323,6 +323,7 @@ const RecommendedLaptops = () => {
   const laptopsPerPage = 6;
   const initialLoad = useRef(true);
 
+  
   // Helper function to transform database laptop object to expected format
   const transformLaptopData = (dbLaptop) => {
     // Create a comprehensive specs string from database fields

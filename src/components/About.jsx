@@ -20,17 +20,17 @@ const About = () => {
           <div className={styles.teamMember}>
             <img src="/images/waqar.jpg" alt="Waqar Asghar" className={styles.teamMemberImage} />
             <h3 className={styles.teamMemberName}>Waqar Asghar</h3>
-            <p className={styles.teamMemberRole}>Lead Developer – Spearheaded AI engine and system architecture design.</p>
+            <p className={styles.teamMemberRole}>Backend, API Handling & AI</p>
           </div>
           <div className={styles.teamMember}>
             <img src="/images/ibrahim.jpg" alt="Muhammad Ibrahim Zarar" className={styles.teamMemberImage} />
             <h3 className={styles.teamMemberName}>Muhammad Ibrahim Zarar</h3>
-            <p className={styles.teamMemberRole}>UI/UX & Frontend Lead – Crafted an intuitive and seamless user experience.</p>
+            <p className={styles.teamMemberRole}>UI/UX, Frontend & Firebase Auth</p>
           </div>
           <div className={styles.teamMember}>
             <img src="/images/ashar.jpg" alt="Ashar Asfaq" className={styles.teamMemberImage} />
             <h3 className={styles.teamMemberName}>Ashar Asfaq</h3>
-            <p className={styles.teamMemberRole}>Product Manager – Defined strategy, managed features, and ensured delivery excellence.</p>
+            <p className={styles.teamMemberRole}>Frontend & Documentation</p>
           </div>
         </div>
       </div>

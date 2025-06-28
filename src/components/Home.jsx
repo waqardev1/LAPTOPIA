@@ -4,10 +4,8 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import LaptopRecommendation from './LaptopRecommendation';
 import CustomPcBuilder from './CustomPcBuilder';
-import LatestModels from './LatestModels';
 import styles from './Home.module.css';
 import laptopData from './latestLaptops.json';
-import RecommendedLaptops from './RecommendedLaptops';
 import ImageLaptopRecommendation from './ImageLaptopRecommendation';
 
 function Home() {
@@ -15,7 +13,7 @@ function Home() {
   const [selectedCompany, setSelectedCompany] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
 
-  const laptopsPerPage = 16;
+  const laptopsPerPage = 12;
 
   useEffect(() => {
     setLaptops(laptopData);
@@ -56,12 +54,10 @@ function Home() {
 
       {/* Two-Column Featured Sections */}
       <div className={styles.featuredSectionsRow}>
-        {/* Main Recommendation (left column) */}
         <div className={styles.laptopRecommendationColumn}>
           <LaptopRecommendation />
         </div>
 
-        {/* Right column: Image-based Recommendation & Custom PC Builder */}
         <div className={styles.rightColumn}>
           <div className={styles.imageLaptopRecommendationSection}>
             <ImageLaptopRecommendation />
@@ -69,12 +65,24 @@ function Home() {
           <div className={styles.customPcBuilderSection}>
             <CustomPcBuilder />
           </div>
+
+          {/* Chatbot Integration */}
+          <div style={{ marginTop: 1, boxShadow: '0 4px 24px rgba(0,0,0,0.10)', borderRadius: 16, overflow: 'hidden', background: '#fff', maxWidth: 500, marginLeft: 'auto', marginRight: 'auto' }}>
+            <iframe
+              src="https://www.chatbase.co/chatbot-iframe/dIt4-jktab08koS77g472"
+              width="100%"
+              style={{ height: '350px', minHeight: '300px', border: 'none', display: 'block' }}
+              frameBorder="0"
+              title="Laptopia Chatbot"
+            ></iframe>
+          </div>
         </div>
       </div>
 
       {/* Latest Models Section */}
       <div className={styles.latestModelsSection}>
         <h2 className={styles.sectionTitle}>Explore Latest Models</h2>
+
         <div className={styles.companyFilters}>
           <button
             className={`${styles.filterButton} ${selectedCompany === null ? styles.activeFilter : ''}`}
@@ -92,12 +100,19 @@ function Home() {
             </button>
           ))}
         </div>
+
         <div className={styles.laptopGrid}>
           {currentLaptops.map((laptop) => (
             <div key={laptop.indx} className={styles.laptopCard}>
-              <img src={`path_to_images/${laptop.Company}_${laptop.indx}.jpg`} alt={laptop.Company} className={styles.laptopImage} />
+              <img
+                src={`path_to_images/${laptop.Company}_${laptop.indx}.jpg`}
+                alt={laptop.Company}
+                className={styles.laptopImage}
+              />
               <h3 className={styles.laptopName}>{laptop.Company} {laptop.TypeName}</h3>
-              <p className={styles.laptopSpecs}>CPU: {laptop.cpu_name.trim()} | RAM: {laptop.Ram}GB | Storage: {laptop.Memory}</p>
+              <p className={styles.laptopSpecs}>
+                CPU: {laptop.cpu_name.trim()} | RAM: {laptop.Ram}GB | Storage: {laptop.Memory}
+              </p>
               <Link
                 to="/laptop-details"
                 state={{ laptop }}
@@ -108,6 +123,7 @@ function Home() {
             </div>
           ))}
         </div>
+
         <div className={styles.pagination}>
           <button
             className={styles.pageButton}

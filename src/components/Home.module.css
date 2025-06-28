@@ -23,7 +23,8 @@ body {
   border-radius: 1rem;
   color: white;
   overflow: hidden;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1),
+              0 10px 10px -5px rgba(0, 0, 0, 0.04);
 }
 
 .hero::before {
@@ -49,18 +50,13 @@ body {
   z-index: 1;
 }
 
-.heroContent {
-  position: relative;
-  z-index: 2;
-  max-width: 800px;
-  margin: 0 auto;
-}
-
 .heroTitle {
   font-size: 2.5rem;
   margin-bottom: 0.5rem;
   font-weight: 800;
   letter-spacing: -0.025em;
+  position: relative;
+  z-index: 2;
 }
 
 .heroSubtitle {
@@ -69,37 +65,53 @@ body {
   max-width: 600px;
   margin: 0 auto;
   line-height: 1.6;
+  position: relative;
+  z-index: 2;
 }
 
-/* Featured Sections */
-.featuredSections {
+/* Two-Column Featured Sections */
+.featuredSectionsRow {
   display: flex;
+  gap: 2.5rem;
+  align-items: flex-start;
+  margin-bottom: 2.5rem;
+  padding: 0 2rem;
   flex-wrap: wrap;
-  gap: 2rem;
-  padding: 2rem;
 }
 
-.laptopRecommendation,
-.customPcBuilder {
-  flex: 1 1 calc(50% - 1rem);
+.laptopRecommendationColumn {
+  flex: 2 1 0%;
+  min-width: 360px;
+  background: #fff;
+  border-radius: 18px;
+  padding: 2rem 1.8rem 2rem 2rem;
+  box-shadow: 0 6px 28px rgba(50, 80, 140, 0.11);
+}
+
+.rightColumn {
+  flex: 1 1 0%;
+  min-width: 300px;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: flex-start;
-  background: white;
-  border-radius: 0.5rem;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  padding: 1rem;
+  gap: 2rem;
 }
 
-@media (max-width: 768px) {
-  .featuredSections {
+.imageLaptopRecommendationSection,
+.customPcBuilderSection {
+  width: 100%;
+}
+
+/* Responsive */
+@media (max-width: 900px) {
+  .featuredSectionsRow {
     flex-direction: column;
+    gap: 1.6rem;
   }
 
-  .laptopRecommendation,
-  .customPcBuilder {
-    flex: 1 1 100%;
+  .laptopRecommendationColumn,
+  .rightColumn {
+    min-width: 0;
+    padding: 1.1rem;
   }
 }
 
@@ -111,11 +123,39 @@ body {
   text-align: center;
 }
 
-.latestModelsSection h2 {
+.sectionTitle {
   font-size: 2rem;
   margin-bottom: 1rem;
 }
 
+.companyFilters {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  padding: 0 1rem;
+}
+
+.filterButton {
+  padding: 0.5rem 1rem;
+  background-color: #f8fafc;
+  border: 1px solid #3b82f6;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: background-color 0.3s ease, border-color 0.3s ease;
+  flex: 0 1 auto;
+  text-align: center;
+}
+
+.filterButton:hover,
+.activeFilter {
+  background-color: #3b82f6;
+  border-color: #2563eb;
+  color: white;
+}
+
+/* Laptop Cards */
 .laptopGrid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
@@ -139,6 +179,7 @@ body {
   transform: translateY(-6px);
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
 }
+
 .laptopImage {
   width: 100%;
   height: 180px;
@@ -180,34 +221,7 @@ body {
   transform: scale(1.05);
 }
 
-/* Company Filters */
-.companyFilters {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 1rem;
-  margin-bottom: 2rem;
-  padding: 0 1rem;
-}
-
-.filterButton {
-  padding: 0.5rem 1rem;
-  background-color: #f8fafc;
-  border: 1px solid #3b82f6;
-  border-radius: 0.5rem;
-  cursor: pointer;
-  transition: background-color 0.3s ease, border-color 0.3s ease;
-  flex: 0 1 auto;
-  text-align: center;
-}
-
-.filterButton:hover,
-.filterButton.activeFilter {
-  background-color: #3b82f6;
-  border-color: #2563eb;
-  color: white;
-}
-
+/* Pagination */
 .pagination {
   display: flex;
   justify-content: center;
@@ -239,64 +253,4 @@ body {
 .activePage {
   background-color: #3b82f6;
   color: white;
-}
-.featuredSectionsRow {
-  display: flex;
-  gap: 2rem;
-  align-items: flex-start;
-}
-
-.laptopRecommendationColumn {
-  flex: 2 1 0%;
-  min-width: 350px;
-}
-
-.rightColumn {
-  flex: 1 1 0%;
-  min-width: 280px;
-  display: flex;
-  flex-direction: column;
-  gap: 1.2rem;
-}
-
-.imageLaptopRecommendationSection,
-.customPcBuilderSection {
-  width: 100%;
-}
-
-/* Main two-column featured area */
-.featuredSectionsRow {
-  display: flex;
-  gap: 2.5rem;            /* More gap between columns */
-  align-items: flex-start;
-  margin-bottom: 2.5rem;  /* Space below featured area */
-}
-
-.laptopRecommendationColumn {
-  flex: 2 1 0%;
-  min-width: 360px;
-  background: #fff;
-  border-radius: 18px;
-  padding: 2rem 1.8rem 2rem 2rem;
-  box-shadow: 0 6px 28px rgba(50,80,140,0.11);
-}
-
-.rightColumn {
-  flex: 1 1 0%;
-  min-width: 300px;
-  display: flex;
-  flex-direction: column;
-  gap: 2rem;                /* More space between right-panel cards */
-}
-
-/* Responsive: stack on mobile */
-@media (max-width: 900px) {
-  .featuredSectionsRow {
-    flex-direction: column;
-    gap: 1.6rem;
-  }
-  .laptopRecommendationColumn, .rightColumn {
-    min-width: 0;
-    padding: 1.1rem;
-  }
 }
